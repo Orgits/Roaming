@@ -1996,6 +1996,9 @@ function MessagingView() {
   const [messages, setMessages] = useState([]);
   const [msgText, setMsgText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [searchUsers, setSearchUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef(null);
 
   useEffect(() => { loadConversations(); }, []);
@@ -2003,89 +2006,246 @@ function MessagingView() {
 
   const loadConversations = async () => {
     setLoading(true);
-    try { const r = await fetch('/api/conversations', { credentials: 'include' }); if (r.ok) { const d = await r.json(); setConversations(d.conversations || []); } } catch (e) {}
+    try {
+      const r = await fetch('/api/conversations', { credentials: 'include' });
+      if (r.ok) {
+        const d = await r.json();
+        setConversations(d.conversations || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
     setLoading(false);
   };
 
   const openConversation = async (conv) => {
     setActiveConv(conv);
-    try { const r = await fetch(`/api/conversations/${conv.conversation_id}/messages`, { credentials: 'include' }); if (r.ok) { const d = await r.json(); setMessages(d.messages || []); } } catch (e) {}
+    setShowNewChat(false);
+    try {
+      const r = await fetch(`/api/conversations/${conv.conversation_id}/messages`, { credentials: 'include' });
+      if (r.ok) {
+        const d = await r.json();
+        setMessages(d.messages || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const sendMessage = async () => {
     if (!msgText.trim() || !activeConv) return;
+    const tempMsg = {
+      message_id: Date.now(),
+      sender_id: user.user_id,
+      content: msgText,
+      created_at: new Date()
+    };
+    setMessages(prev => [...prev, tempMsg]);
+    const textToSend = msgText;
+    setMsgText('');
+
     try {
-      const r = await fetch(`/api/conversations/${activeConv.conversation_id}/send`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: msgText }), credentials: 'include'
+      const r = await fetch(`/api/conversations/${activeConv.conversation_id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: textToSend }),
+        credentials: 'include'
       });
       if (r.ok) {
         const msg = await r.json();
-        setMessages(prev => [...prev, msg]);
-        setMsgText('');
+        setMessages(prev => prev.map(m => m.message_id === tempMsg.message_id ? msg : m));
         setConversations(prev => prev.map(c => c.conversation_id === activeConv.conversation_id
-          ? { ...c, last_message: { content: msgText, sender_id: user.user_id, created_at: new Date() } } : c));
+          ? { ...c, last_message: { content: textToSend, sender_id: user.user_id, created_at: new Date() } } : c));
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const searchForUsers = async (query) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchUsers([]);
+      return;
+    }
+    try {
+      const r = await fetch(`/api/users?search=${encodeURIComponent(query)}`, { credentials: 'include' });
+      if (r.ok) {
+        const d = await r.json();
+        setSearchUsers(d.users || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const startNewConversation = async (otherUser) => {
+    try {
+      const r = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ participant_ids: [user.user_id, otherUser.user_id] }),
+        credentials: 'include'
+      });
+      if (r.ok) {
+        const conv = await r.json();
+        setConversations(prev => [conv, ...prev]);
+        openConversation(conv);
+        setShowNewChat(false);
+        setSearchQuery('');
+        setSearchUsers([]);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
     <div className="max-w-6xl mx-auto px-4 pt-20 pb-8">
-      <h1 className="text-2xl font-bold text-white mb-6">Messages</h1>
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[calc(100vh-160px)]">
-        {/* Conversation List */}
-        <Card className="md:col-span-4 bg-white/[0.03] border-white/5 overflow-hidden">
-          <CardContent className="p-0">
-            <div className="p-3 border-b border-white/5">
-              <Input placeholder="Search messages..." className="bg-white/5 border-white/10 text-white placeholder:text-slate-600 text-sm h-9" />
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-foreground">Messages</h1>
+        <Button onClick={() => setShowNewChat(!showNewChat)} className="bg-emerald-500 hover:bg-emerald-600 rounded-full">
+          <Plus className="w-4 h-4 mr-2" /> New Chat
+        </Button>
+      </div>
+
+      {showNewChat && (
+        <Card className="mb-4 bg-card border-border">
+          <CardContent className="p-4">
+            <h3 className="text-sm font-medium text-foreground mb-3">Start a new conversation</h3>
+            <Input
+              placeholder="Search for people..."
+              value={searchQuery}
+              onChange={(e) => searchForUsers(e.target.value)}
+              className="mb-3"
+            />
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {searchUsers.map(u => (
+                <button
+                  key={u.user_id}
+                  onClick={() => startNewConversation(u)}
+                  className="w-full flex items-center gap-3 p-2 hover:bg-muted rounded-lg transition-colors"
+                >
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={u.picture} />
+                    <AvatarFallback>{u.name?.[0]}</AvatarFallback>
+                  </Avatar>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-foreground">{u.name}</p>
+                    <p className="text-xs text-muted-foreground">{u.headline || u.email}</p>
+                  </div>
+                </button>
+              ))}
             </div>
-            <div className="overflow-y-auto max-h-[calc(100vh-250px)]">
-              {loading ? <div className="p-4 text-center"><div className="animate-spin w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div> :
-                conversations.length === 0 ? <div className="p-8 text-center text-slate-500 text-sm">No conversations yet</div> :
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[calc(100vh-200px)]">
+        {/* Conversation List */}
+        <Card className="md:col-span-4 bg-card border-border overflow-hidden">
+          <CardContent className="p-0">
+            <div className="p-3 border-b border-border">
+              <Input placeholder="Search messages..." className="bg-input border-border text-foreground placeholder:text-muted-foreground text-sm h-9" />
+            </div>
+            <div className="overflow-y-auto max-h-[calc(100vh-300px)]">
+              {loading ? (
+                <div className="p-4 text-center">
+                  <div className="animate-spin w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto" />
+                </div>
+              ) : conversations.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground text-sm">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No conversations yet</p>
+                  <p className="text-xs mt-1">Click "New Chat" to start</p>
+                </div>
+              ) : (
                 conversations.map(c => (
-                  <button key={c.conversation_id} onClick={() => openConversation(c)}
-                    className={`w-full flex items-center gap-3 p-3 text-left hover:bg-white/5 transition-colors border-b border-white/5 ${activeConv?.conversation_id === c.conversation_id ? 'bg-white/5' : ''}`}>
-                    <Avatar className="h-10 w-10"><AvatarImage src={c.other_user?.picture} /><AvatarFallback className="bg-white/10">{c.other_user?.name?.[0]}</AvatarFallback></Avatar>
+                  <button
+                    key={c.conversation_id}
+                    onClick={() => openConversation(c)}
+                    className={`w-full flex items-center gap-3 p-3 text-left hover:bg-muted transition-colors border-b border-border ${activeConv?.conversation_id === c.conversation_id ? 'bg-muted' : ''}`}
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={c.other_user?.picture} />
+                      <AvatarFallback className="bg-muted">{c.other_user?.name?.[0]}</AvatarFallback>
+                    </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-white truncate">{c.other_user?.name}</span>
-                        {c.unread_count > 0 && <span className="w-5 h-5 rounded-full bg-emerald-500 text-white text-[10px] flex items-center justify-center">{c.unread_count}</span>}
+                        <span className="text-sm font-medium text-foreground truncate">{c.other_user?.name}</span>
+                        {c.unread_count > 0 && (
+                          <span className="w-5 h-5 rounded-full bg-emerald-500 text-white text-[10px] flex items-center justify-center">
+                            {c.unread_count}
+                          </span>
+                        )}
                       </div>
-                      <p className="text-xs text-slate-500 truncate">{c.last_message?.content || 'Start a conversation'}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {c.last_message?.content || 'Start a conversation'}
+                      </p>
                     </div>
                   </button>
-                ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
 
         {/* Chat Area */}
-        <Card className="md:col-span-8 bg-white/[0.03] border-white/5 overflow-hidden flex flex-col">
+        <Card className="md:col-span-8 bg-card border-border overflow-hidden flex flex-col">
           {activeConv ? (
             <>
-              <div className="p-3 border-b border-white/5 flex items-center gap-3">
-                <Avatar className="h-8 w-8"><AvatarImage src={activeConv.other_user?.picture} /><AvatarFallback className="bg-white/10">{activeConv.other_user?.name?.[0]}</AvatarFallback></Avatar>
-                <div><p className="text-sm font-medium text-white">{activeConv.other_user?.name}</p><p className="text-[10px] text-slate-500">{activeConv.other_user?.headline}</p></div>
+              <div className="p-3 border-b border-border flex items-center gap-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={activeConv.other_user?.picture} />
+                  <AvatarFallback className="bg-muted">{activeConv.other_user?.name?.[0]}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-sm font-medium text-foreground">{activeConv.other_user?.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{activeConv.other_user?.headline}</p>
+                </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {messages.map(m => (
-                  <div key={m.message_id} className={`flex ${m.sender_id === user?.user_id ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[70%] px-3 py-2 rounded-2xl text-sm ${m.sender_id === user?.user_id ? 'bg-emerald-500 text-white rounded-br-md' : 'bg-white/10 text-slate-200 rounded-bl-md'}`}>
-                      <p>{m.content}</p>
-                      <p className={`text-[10px] mt-1 ${m.sender_id === user?.user_id ? 'text-emerald-200' : 'text-slate-500'}`}>{m.created_at ? formatDistanceToNow(new Date(m.created_at), { addSuffix: true }) : ''}</p>
-                    </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/20">
+                {messages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-muted-foreground text-sm">No messages yet. Say hi! 👋</p>
                   </div>
-                ))}
+                ) : (
+                  messages.map(m => (
+                    <div key={m.message_id} className={`flex ${m.sender_id === user?.user_id ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[70%] px-3 py-2 rounded-2xl text-sm ${m.sender_id === user?.user_id ? 'bg-emerald-500 text-white rounded-br-md' : 'bg-card border border-border text-foreground rounded-bl-md'}`}>
+                        <p>{m.content}</p>
+                        <p className={`text-[10px] mt-1 ${m.sender_id === user?.user_id ? 'text-emerald-100' : 'text-muted-foreground'}`}>
+                          {m.created_at ? formatDistanceToNow(new Date(m.created_at), { addSuffix: true }) : ''}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
                 <div ref={messagesEndRef} />
               </div>
-              <div className="p-3 border-t border-white/5 flex gap-2">
-                <Input value={msgText} onChange={e => setMsgText(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()}
-                  placeholder="Type a message..." className="flex-1 bg-white/5 border-white/10 text-white placeholder:text-slate-600 text-sm rounded-full" />
-                <Button onClick={sendMessage} disabled={!msgText.trim()} className="bg-emerald-500 hover:bg-emerald-600 rounded-full" size="icon"><Send className="w-4 h-4" /></Button>
+              <div className="p-3 border-t border-border flex gap-2">
+                <Input
+                  value={msgText}
+                  onChange={e => setMsgText(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                  placeholder="Type a message..."
+                  className="flex-1 bg-input border-border text-foreground placeholder:text-muted-foreground text-sm rounded-full"
+                />
+                <Button onClick={sendMessage} disabled={!msgText.trim()} className="bg-emerald-500 hover:bg-emerald-600 rounded-full" size="icon">
+                  <Send className="w-4 h-4" />
+                </Button>
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center"><div className="text-center"><MessageSquare className="w-12 h-12 text-slate-700 mx-auto mb-3" /><p className="text-slate-500">Select a conversation</p></div></div>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                <p className="text-muted-foreground">Select a conversation to start chatting</p>
+                <Button onClick={() => setShowNewChat(true)} variant="outline" className="mt-4">
+                  <Plus className="w-4 h-4 mr-2" /> Start New Chat
+                </Button>
+              </div>
+            </div>
           )}
         </Card>
       </div>
