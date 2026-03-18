@@ -426,8 +426,12 @@ function TopBar() {
   const navItems = [
     { id: 'feed', label: 'Home', icon: Home },
     { id: 'network', label: 'Network', icon: Users },
+    { id: 'jobs', label: 'Jobs', icon: Briefcase },
+    { id: 'messages', label: 'Messages', icon: MessageSquare },
+    { id: 'communities', label: 'Groups', icon: Globe },
+    { id: 'events', label: 'Events', icon: Calendar },
     { id: 'business', label: 'Business', icon: Building2 },
-    { id: 'ceo', label: 'CEO Index', icon: Crown },
+    { id: 'ceo', label: 'CEO', icon: Crown },
   ];
 
   return (
@@ -1352,6 +1356,690 @@ function BusinessIndexView() {
   );
 }
 
+// ======================= JOBS VIEW =======================
+function JobsView() {
+  const { user, setView, setSelectedUserId } = useApp();
+  const [tab, setTab] = useState('browse');
+  const [jobs, setJobs] = useState([]);
+  const [myApps, setMyApps] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [filterMode, setFilterMode] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [jobForm, setJobForm] = useState({ title: '', company: '', location: '', type: 'full-time', work_mode: 'hybrid', description: '', skills: '', salary_min: '', salary_max: '', experience_level: 'mid' });
+  const [applyDialog, setApplyDialog] = useState(null);
+  const [coverNote, setCoverNote] = useState('');
+
+  useEffect(() => { loadJobs(); }, []);
+
+  const loadJobs = async (q = '', type = '', mode = '') => {
+    setLoading(true);
+    try {
+      const p = new URLSearchParams();
+      if (q) p.set('q', q);
+      if (type) p.set('type', type);
+      if (mode) p.set('work_mode', mode);
+      const res = await fetch(`/api/jobs?${p}`, { credentials: 'include' });
+      if (res.ok) { const d = await res.json(); setJobs(d.jobs || []); }
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  const loadMyApps = async () => {
+    try {
+      const res = await fetch('/api/jobs/applications', { credentials: 'include' });
+      if (res.ok) { const d = await res.json(); setMyApps(d.applications || []); }
+    } catch (e) { console.error(e); }
+  };
+
+  const createJob = async () => {
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...jobForm, skills: jobForm.skills.split(',').map(s => s.trim()).filter(Boolean), salary_min: parseInt(jobForm.salary_min) || 0, salary_max: parseInt(jobForm.salary_max) || 0 }),
+        credentials: 'include'
+      });
+      if (res.ok) { const j = await res.json(); setJobs(prev => [j, ...prev]); setShowCreate(false); setJobForm({ title: '', company: '', location: '', type: 'full-time', work_mode: 'hybrid', description: '', skills: '', salary_min: '', salary_max: '', experience_level: 'mid' }); }
+    } catch (e) { console.error(e); }
+  };
+
+  const applyJob = async (jobId) => {
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/apply`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cover_note: coverNote }), credentials: 'include'
+      });
+      if (res.ok) { setApplyDialog(null); setCoverNote(''); setJobs(prev => prev.map(j => j.job_id === jobId ? { ...j, has_applied: true } : j)); }
+    } catch (e) { console.error(e); }
+  };
+
+  const formatSalary = (min, max) => {
+    if (!min && !max) return '';
+    const fmt = n => n >= 100000 ? `${(n/100000).toFixed(1)}L` : `${(n/1000).toFixed(0)}K`;
+    if (min && max) return `${fmt(min)} - ${fmt(max)}`;
+    if (min) return `${fmt(min)}+`;
+    return `Up to ${fmt(max)}`;
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 pt-20 pb-8">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Jobs & Opportunities</h1>
+          <p className="text-slate-400 text-sm mt-1">Find your next role or hire top talent</p>
+        </div>
+        <Button onClick={() => setShowCreate(true)} className="bg-emerald-500 hover:bg-emerald-600 rounded-full">
+          <Plus className="w-4 h-4 mr-2" /> Post a Job
+        </Button>
+      </div>
+
+      <Tabs value={tab} onValueChange={v => { setTab(v); if (v === 'applications') loadMyApps(); }}>
+        <TabsList className="bg-white/5 border border-white/10 mb-6">
+          <TabsTrigger value="browse" className="data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Browse Jobs</TabsTrigger>
+          <TabsTrigger value="applications" className="data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">My Applications</TabsTrigger>
+          <TabsTrigger value="cofounder" className="data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Cofounder Board</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="browse">
+          <Card className="bg-white/[0.03] border-white/5 mb-6">
+            <CardContent className="p-4">
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <Input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && loadJobs(search, filterType, filterMode)}
+                    placeholder="Search jobs..." className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-slate-600" />
+                </div>
+                <select value={filterType} onChange={e => { setFilterType(e.target.value); loadJobs(search, e.target.value, filterMode); }}
+                  className="h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">
+                  <option value="" className="bg-slate-900">All Types</option>
+                  {['full-time', 'part-time', 'contract', 'internship'].map(t => <option key={t} value={t} className="bg-slate-900">{t}</option>)}
+                </select>
+                <select value={filterMode} onChange={e => { setFilterMode(e.target.value); loadJobs(search, filterType, e.target.value); }}
+                  className="h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">
+                  <option value="" className="bg-slate-900">All Modes</option>
+                  {['remote', 'onsite', 'hybrid'].map(m => <option key={m} value={m} className="bg-slate-900">{m}</option>)}
+                </select>
+              </div>
+            </CardContent>
+          </Card>
+          {loading ? <div className="text-center py-12"><div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div> :
+            jobs.length === 0 ? (
+              <Card className="bg-white/[0.03] border-white/5"><CardContent className="py-16 text-center">
+                <Briefcase className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                <h3 className="text-lg text-white mb-2">No jobs found</h3>
+                <p className="text-sm text-slate-400">Try adjusting your search or post a job.</p>
+              </CardContent></Card>
+            ) : (
+              <div className="space-y-3">
+                {jobs.map(j => (
+                  <Card key={j.job_id} className="bg-white/[0.03] border-white/5 hover:border-white/10 transition-colors">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                          <Briefcase className="w-6 h-6 text-blue-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-white">{j.title}</h3>
+                          <p className="text-sm text-slate-400">{j.company}</p>
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">{j.type}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{j.work_mode}</span>
+                            {j.location && <span className="text-xs text-slate-500 flex items-center gap-1"><MapPin className="w-3 h-3" />{j.location}</span>}
+                            {(j.salary_min || j.salary_max) ? <span className="text-xs text-emerald-400 font-medium">{formatSalary(j.salary_min, j.salary_max)}</span> : null}
+                          </div>
+                          {j.skills?.length > 0 && <div className="flex flex-wrap gap-1 mt-2">{j.skills.slice(0, 4).map(s => <span key={s} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-slate-400">{s}</span>)}</div>}
+                          <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                            <span>{j.applications_count || 0} applicants</span>
+                            <span>{j.created_at ? formatDistanceToNow(new Date(j.created_at), { addSuffix: true }) : ''}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {j.has_applied ? (
+                            <span className="text-xs px-3 py-1.5 rounded-full bg-slate-700 text-slate-300">Applied</span>
+                          ) : j.poster_id !== user?.user_id ? (
+                            <Button size="sm" onClick={() => setApplyDialog(j)} className="bg-emerald-500 hover:bg-emerald-600 rounded-full text-xs px-4">
+                              Easy Apply
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+        </TabsContent>
+
+        <TabsContent value="applications">
+          {myApps.length === 0 ? (
+            <Card className="bg-white/[0.03] border-white/5"><CardContent className="py-16 text-center">
+              <Briefcase className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-400">No applications yet. Start applying!</p>
+            </CardContent></Card>
+          ) : (
+            <div className="space-y-3">
+              {myApps.map(a => (
+                <Card key={a.application_id} className="bg-white/[0.03] border-white/5">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <Briefcase className="w-8 h-8 text-blue-400" />
+                    <div className="flex-1">
+                      <h3 className="font-medium text-white">{a.job?.title || 'Unknown Job'}</h3>
+                      <p className="text-xs text-slate-400">{a.job?.company}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${a.status === 'applied' ? 'bg-blue-500/10 text-blue-400' : a.status === 'shortlisted' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-500/10 text-slate-400'}`}>{a.status}</span>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="cofounder"><CofounderBoard /></TabsContent>
+      </Tabs>
+
+      {/* Create Job Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="bg-slate-900 border-white/10 text-white max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Post a Job</DialogTitle></DialogHeader>
+          <div className="space-y-3 mt-2">
+            <div><label className="text-sm text-slate-400">Job Title *</label>
+              <Input value={jobForm.title} onChange={e => setJobForm(f => ({ ...f, title: e.target.value }))} className="mt-1 bg-white/5 border-white/10 text-white" placeholder="e.g. Senior Full Stack Developer" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-sm text-slate-400">Company</label>
+                <Input value={jobForm.company} onChange={e => setJobForm(f => ({ ...f, company: e.target.value }))} className="mt-1 bg-white/5 border-white/10 text-white" /></div>
+              <div><label className="text-sm text-slate-400">Location</label>
+                <select value={jobForm.location} onChange={e => setJobForm(f => ({ ...f, location: e.target.value }))} className="mt-1 w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">
+                  <option value="" className="bg-slate-900">Select</option>{CITIES.map(c => <option key={c} value={c} className="bg-slate-900">{c}</option>)}</select></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-sm text-slate-400">Type</label>
+                <select value={jobForm.type} onChange={e => setJobForm(f => ({ ...f, type: e.target.value }))} className="mt-1 w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">
+                  {['full-time', 'part-time', 'contract', 'internship'].map(t => <option key={t} value={t} className="bg-slate-900">{t}</option>)}</select></div>
+              <div><label className="text-sm text-slate-400">Work Mode</label>
+                <select value={jobForm.work_mode} onChange={e => setJobForm(f => ({ ...f, work_mode: e.target.value }))} className="mt-1 w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">
+                  {['remote', 'onsite', 'hybrid'].map(m => <option key={m} value={m} className="bg-slate-900">{m}</option>)}</select></div>
+            </div>
+            <div><label className="text-sm text-slate-400">Description</label>
+              <textarea value={jobForm.description} onChange={e => setJobForm(f => ({ ...f, description: e.target.value }))} className="mt-1 w-full min-h-[80px] bg-white/5 border border-white/10 rounded-md p-3 text-white text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500" /></div>
+            <div><label className="text-sm text-slate-400">Skills (comma separated)</label>
+              <Input value={jobForm.skills} onChange={e => setJobForm(f => ({ ...f, skills: e.target.value }))} className="mt-1 bg-white/5 border-white/10 text-white" placeholder="React, Node.js, TypeScript" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-sm text-slate-400">Min Salary (INR)</label>
+                <Input type="number" value={jobForm.salary_min} onChange={e => setJobForm(f => ({ ...f, salary_min: e.target.value }))} className="mt-1 bg-white/5 border-white/10 text-white" /></div>
+              <div><label className="text-sm text-slate-400">Max Salary (INR)</label>
+                <Input type="number" value={jobForm.salary_max} onChange={e => setJobForm(f => ({ ...f, salary_max: e.target.value }))} className="mt-1 bg-white/5 border-white/10 text-white" /></div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" onClick={() => setShowCreate(false)} className="flex-1 border-white/10 text-white hover:bg-white/5">Cancel</Button>
+              <Button onClick={createJob} disabled={!jobForm.title} className="flex-1 bg-emerald-500 hover:bg-emerald-600">Post Job</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Apply Dialog */}
+      <Dialog open={!!applyDialog} onOpenChange={() => setApplyDialog(null)}>
+        <DialogContent className="bg-slate-900 border-white/10 text-white max-w-md">
+          <DialogHeader><DialogTitle>Apply to {applyDialog?.title}</DialogTitle></DialogHeader>
+          <div className="space-y-3 mt-2">
+            <p className="text-sm text-slate-400">{applyDialog?.company} • {applyDialog?.location}</p>
+            <div><label className="text-sm text-slate-400">Cover Note (optional)</label>
+              <textarea value={coverNote} onChange={e => setCoverNote(e.target.value)} className="mt-1 w-full min-h-[80px] bg-white/5 border border-white/10 rounded-md p-3 text-white text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Why are you a great fit?" /></div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setApplyDialog(null)} className="flex-1 border-white/10 text-white hover:bg-white/5">Cancel</Button>
+              <Button onClick={() => applyJob(applyDialog?.job_id)} className="flex-1 bg-emerald-500 hover:bg-emerald-600">Submit Application</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ======================= COFOUNDER BOARD =======================
+function CofounderBoard() {
+  const { user, setView, setSelectedUserId } = useApp();
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ title: '', description: '', looking_for: 'tech', commitment: 'full-time', equity_range: '', location_pref: 'Any', stage: 'Idea' });
+
+  useEffect(() => { loadPosts(); }, []);
+  const loadPosts = async () => { setLoading(true); try { const r = await fetch('/api/cofounder', { credentials: 'include' }); if (r.ok) { const d = await r.json(); setPosts(d.posts || []); } } catch (e) {} setLoading(false); };
+
+  const createPost = async () => {
+    try { const r = await fetch('/api/cofounder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form), credentials: 'include' });
+      if (r.ok) { const p = await r.json(); setPosts(prev => [p, ...prev]); setShowCreate(false); }
+    } catch (e) {}
+  };
+
+  const lookingForColors = { tech: 'text-blue-400 bg-blue-500/10', business: 'text-emerald-400 bg-emerald-500/10', design: 'text-purple-400 bg-purple-500/10', marketing: 'text-amber-400 bg-amber-500/10' };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-slate-400">Find your perfect cofounder</p>
+        <Button onClick={() => setShowCreate(true)} size="sm" className="bg-emerald-500 hover:bg-emerald-600 rounded-full text-xs"><Plus className="w-3 h-3 mr-1" /> Post</Button>
+      </div>
+      {loading ? <div className="text-center py-8"><div className="animate-spin w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div> :
+        posts.length === 0 ? <Card className="bg-white/[0.03] border-white/5"><CardContent className="py-12 text-center"><Rocket className="w-10 h-10 text-slate-600 mx-auto mb-3" /><p className="text-slate-400">No cofounder posts yet.</p></CardContent></Card> :
+        <div className="space-y-3">{posts.map(p => (
+          <Card key={p.post_id} className="bg-white/[0.03] border-white/5 hover:border-white/10 transition-colors">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <Avatar className="h-10 w-10 cursor-pointer" onClick={() => { setSelectedUserId(p.author?.user_id); setView('user-profile'); }}>
+                  <AvatarImage src={p.author?.picture} /><AvatarFallback className="bg-emerald-500/20 text-emerald-400">{p.author?.name?.[0]}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-white">{p.title}</h3>
+                  <p className="text-xs text-slate-500">{p.author?.name} • {p.created_at ? formatDistanceToNow(new Date(p.created_at), { addSuffix: true }) : ''}</p>
+                  <p className="text-sm text-slate-300 mt-2">{p.description}</p>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${lookingForColors[p.looking_for] || 'bg-white/5 text-slate-400'}`}>Looking for: {p.looking_for}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 text-slate-400">{p.commitment}</span>
+                    {p.equity_range && <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 text-slate-400">Equity: {p.equity_range}</span>}
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 text-slate-400">Stage: {p.stage}</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}</div>}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="bg-slate-900 border-white/10 text-white max-w-lg">
+          <DialogHeader><DialogTitle>Looking for a Cofounder</DialogTitle></DialogHeader>
+          <div className="space-y-3 mt-2">
+            <div><label className="text-sm text-slate-400">Title *</label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className="mt-1 bg-white/5 border-white/10 text-white" placeholder="e.g. Looking for a CTO" /></div>
+            <div><label className="text-sm text-slate-400">Description</label><textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="mt-1 w-full min-h-[80px] bg-white/5 border border-white/10 rounded-md p-3 text-white text-sm resize-none" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-sm text-slate-400">Looking For</label><select value={form.looking_for} onChange={e => setForm(f => ({ ...f, looking_for: e.target.value }))} className="mt-1 w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">{['tech', 'business', 'design', 'marketing'].map(t => <option key={t} value={t} className="bg-slate-900">{t}</option>)}</select></div>
+              <div><label className="text-sm text-slate-400">Commitment</label><select value={form.commitment} onChange={e => setForm(f => ({ ...f, commitment: e.target.value }))} className="mt-1 w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">{['full-time', 'part-time'].map(t => <option key={t} value={t} className="bg-slate-900">{t}</option>)}</select></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-sm text-slate-400">Equity Range</label><Input value={form.equity_range} onChange={e => setForm(f => ({ ...f, equity_range: e.target.value }))} className="mt-1 bg-white/5 border-white/10 text-white" placeholder="e.g. 15-25%" /></div>
+              <div><label className="text-sm text-slate-400">Stage</label><select value={form.stage} onChange={e => setForm(f => ({ ...f, stage: e.target.value }))} className="mt-1 w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">{STAGES.map(s => <option key={s} value={s} className="bg-slate-900">{s}</option>)}</select></div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" onClick={() => setShowCreate(false)} className="flex-1 border-white/10 text-white hover:bg-white/5">Cancel</Button>
+              <Button onClick={createPost} disabled={!form.title} className="flex-1 bg-emerald-500 hover:bg-emerald-600">Post</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ======================= MESSAGING VIEW =======================
+function MessagingView() {
+  const { user, setView, setSelectedUserId } = useApp();
+  const [conversations, setConversations] = useState([]);
+  const [activeConv, setActiveConv] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [msgText, setMsgText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => { loadConversations(); }, []);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  const loadConversations = async () => {
+    setLoading(true);
+    try { const r = await fetch('/api/conversations', { credentials: 'include' }); if (r.ok) { const d = await r.json(); setConversations(d.conversations || []); } } catch (e) {}
+    setLoading(false);
+  };
+
+  const openConversation = async (conv) => {
+    setActiveConv(conv);
+    try { const r = await fetch(`/api/conversations/${conv.conversation_id}/messages`, { credentials: 'include' }); if (r.ok) { const d = await r.json(); setMessages(d.messages || []); } } catch (e) {}
+  };
+
+  const sendMessage = async () => {
+    if (!msgText.trim() || !activeConv) return;
+    try {
+      const r = await fetch(`/api/conversations/${activeConv.conversation_id}/send`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: msgText }), credentials: 'include'
+      });
+      if (r.ok) {
+        const msg = await r.json();
+        setMessages(prev => [...prev, msg]);
+        setMsgText('');
+        setConversations(prev => prev.map(c => c.conversation_id === activeConv.conversation_id
+          ? { ...c, last_message: { content: msgText, sender_id: user.user_id, created_at: new Date() } } : c));
+      }
+    } catch (e) {}
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 pt-20 pb-8">
+      <h1 className="text-2xl font-bold text-white mb-6">Messages</h1>
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[calc(100vh-160px)]">
+        {/* Conversation List */}
+        <Card className="md:col-span-4 bg-white/[0.03] border-white/5 overflow-hidden">
+          <CardContent className="p-0">
+            <div className="p-3 border-b border-white/5">
+              <Input placeholder="Search messages..." className="bg-white/5 border-white/10 text-white placeholder:text-slate-600 text-sm h-9" />
+            </div>
+            <div className="overflow-y-auto max-h-[calc(100vh-250px)]">
+              {loading ? <div className="p-4 text-center"><div className="animate-spin w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div> :
+                conversations.length === 0 ? <div className="p-8 text-center text-slate-500 text-sm">No conversations yet</div> :
+                conversations.map(c => (
+                  <button key={c.conversation_id} onClick={() => openConversation(c)}
+                    className={`w-full flex items-center gap-3 p-3 text-left hover:bg-white/5 transition-colors border-b border-white/5 ${activeConv?.conversation_id === c.conversation_id ? 'bg-white/5' : ''}`}>
+                    <Avatar className="h-10 w-10"><AvatarImage src={c.other_user?.picture} /><AvatarFallback className="bg-white/10">{c.other_user?.name?.[0]}</AvatarFallback></Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-white truncate">{c.other_user?.name}</span>
+                        {c.unread_count > 0 && <span className="w-5 h-5 rounded-full bg-emerald-500 text-white text-[10px] flex items-center justify-center">{c.unread_count}</span>}
+                      </div>
+                      <p className="text-xs text-slate-500 truncate">{c.last_message?.content || 'Start a conversation'}</p>
+                    </div>
+                  </button>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Chat Area */}
+        <Card className="md:col-span-8 bg-white/[0.03] border-white/5 overflow-hidden flex flex-col">
+          {activeConv ? (
+            <>
+              <div className="p-3 border-b border-white/5 flex items-center gap-3">
+                <Avatar className="h-8 w-8"><AvatarImage src={activeConv.other_user?.picture} /><AvatarFallback className="bg-white/10">{activeConv.other_user?.name?.[0]}</AvatarFallback></Avatar>
+                <div><p className="text-sm font-medium text-white">{activeConv.other_user?.name}</p><p className="text-[10px] text-slate-500">{activeConv.other_user?.headline}</p></div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {messages.map(m => (
+                  <div key={m.message_id} className={`flex ${m.sender_id === user?.user_id ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[70%] px-3 py-2 rounded-2xl text-sm ${m.sender_id === user?.user_id ? 'bg-emerald-500 text-white rounded-br-md' : 'bg-white/10 text-slate-200 rounded-bl-md'}`}>
+                      <p>{m.content}</p>
+                      <p className={`text-[10px] mt-1 ${m.sender_id === user?.user_id ? 'text-emerald-200' : 'text-slate-500'}`}>{m.created_at ? formatDistanceToNow(new Date(m.created_at), { addSuffix: true }) : ''}</p>
+                    </div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+              <div className="p-3 border-t border-white/5 flex gap-2">
+                <Input value={msgText} onChange={e => setMsgText(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()}
+                  placeholder="Type a message..." className="flex-1 bg-white/5 border-white/10 text-white placeholder:text-slate-600 text-sm rounded-full" />
+                <Button onClick={sendMessage} disabled={!msgText.trim()} className="bg-emerald-500 hover:bg-emerald-600 rounded-full" size="icon"><Send className="w-4 h-4" /></Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center"><div className="text-center"><MessageSquare className="w-12 h-12 text-slate-700 mx-auto mb-3" /><p className="text-slate-500">Select a conversation</p></div></div>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ======================= COMMUNITIES VIEW =======================
+function CommunitiesView() {
+  const { user, setView, setSelectedUserId } = useApp();
+  const [communities, setCommunities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [activeComm, setActiveComm] = useState(null);
+  const [commPosts, setCommPosts] = useState([]);
+  const [newPost, setNewPost] = useState('');
+  const [form, setForm] = useState({ name: '', type: 'topic', description: '', industry: '', city: '' });
+
+  useEffect(() => { loadCommunities(); }, []);
+
+  const loadCommunities = async (q = '', type = '') => {
+    setLoading(true);
+    try { const p = new URLSearchParams(); if (q) p.set('q', q); if (type) p.set('type', type);
+      const r = await fetch(`/api/communities?${p}`, { credentials: 'include' }); if (r.ok) { const d = await r.json(); setCommunities(d.communities || []); }
+    } catch (e) {} setLoading(false);
+  };
+
+  const createCommunity = async () => {
+    try { const r = await fetch('/api/communities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form), credentials: 'include' });
+      if (r.ok) { const c = await r.json(); setCommunities(prev => [{ ...c, is_member: true }, ...prev]); setShowCreate(false); }
+    } catch (e) {}
+  };
+
+  const joinCommunity = async (commId) => {
+    try { const r = await fetch(`/api/communities/${commId}/join`, { method: 'POST', credentials: 'include' });
+      if (r.ok) setCommunities(prev => prev.map(c => c.community_id === commId ? { ...c, is_member: true, members_count: (c.members_count || 0) + 1 } : c));
+    } catch (e) {}
+  };
+
+  const openCommunity = async (comm) => {
+    setActiveComm(comm);
+    try { const r = await fetch(`/api/communities/${comm.community_id}/posts`, { credentials: 'include' }); if (r.ok) { const d = await r.json(); setCommPosts(d.posts || []); } } catch (e) {}
+  };
+
+  const createCommPost = async () => {
+    if (!newPost.trim() || !activeComm) return;
+    try { const r = await fetch(`/api/communities/${activeComm.community_id}/posts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: newPost }), credentials: 'include' });
+      if (r.ok) { const p = await r.json(); setCommPosts(prev => [p, ...prev]); setNewPost(''); }
+    } catch (e) {}
+  };
+
+  const typeIcons = { industry: BarChart3, city: MapPin, topic: Sparkles, role: Users, alumni: GraduationCap, private: Shield };
+  const typeColors = { industry: 'from-blue-500/20 to-blue-600/20', city: 'from-emerald-500/20 to-emerald-600/20', topic: 'from-purple-500/20 to-purple-600/20', role: 'from-amber-500/20 to-amber-600/20', alumni: 'from-rose-500/20 to-rose-600/20', private: 'from-slate-500/20 to-slate-600/20' };
+
+  if (activeComm) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 pt-20 pb-8">
+        <Button variant="ghost" className="text-slate-400 hover:text-white mb-4" onClick={() => setActiveComm(null)}>&larr; Back to Communities</Button>
+        <Card className="bg-white/[0.03] border-white/5 mb-6">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${typeColors[activeComm.type] || typeColors.topic} flex items-center justify-center`}>
+                {(() => { const I = typeIcons[activeComm.type] || Sparkles; return <I className="w-7 h-7 text-white" />; })()}
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">{activeComm.name}</h1>
+                <p className="text-sm text-slate-400">{activeComm.members_count || 0} members • {activeComm.type}</p>
+              </div>
+            </div>
+            {activeComm.description && <p className="text-sm text-slate-300 mt-3">{activeComm.description}</p>}
+          </CardContent>
+        </Card>
+        {activeComm.is_member && (
+          <Card className="bg-white/[0.03] border-white/5 mb-4">
+            <CardContent className="p-4 flex gap-3">
+              <Avatar className="h-8 w-8"><AvatarImage src={user?.picture} /><AvatarFallback className="bg-emerald-500/20 text-emerald-400 text-xs">{user?.name?.[0]}</AvatarFallback></Avatar>
+              <div className="flex-1 flex gap-2">
+                <Input value={newPost} onChange={e => setNewPost(e.target.value)} onKeyDown={e => e.key === 'Enter' && createCommPost()} placeholder="Share something with the community..." className="flex-1 bg-white/5 border-white/10 text-white placeholder:text-slate-600 text-sm" />
+                <Button onClick={createCommPost} disabled={!newPost.trim()} className="bg-emerald-500 hover:bg-emerald-600" size="sm">Post</Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        {commPosts.length === 0 ? <Card className="bg-white/[0.03] border-white/5"><CardContent className="py-12 text-center"><p className="text-slate-400">No posts yet. Be the first to contribute!</p></CardContent></Card> :
+          <div className="space-y-3">{commPosts.map(p => (
+            <Card key={p.post_id} className="bg-white/[0.03] border-white/5">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <Avatar className="h-8 w-8"><AvatarImage src={p.author?.picture} /><AvatarFallback className="bg-white/10 text-xs">{p.author?.name?.[0]}</AvatarFallback></Avatar>
+                  <div><span className="text-sm font-medium text-white">{p.author?.name}</span><span className="text-xs text-slate-500 ml-2">{p.created_at ? formatDistanceToNow(new Date(p.created_at), { addSuffix: true }) : ''}</span><p className="text-sm text-slate-300 mt-1">{p.content}</p></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}</div>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 pt-20 pb-8">
+      <div className="flex items-center justify-between mb-6">
+        <div><h1 className="text-2xl font-bold text-white">Communities</h1><p className="text-slate-400 text-sm mt-1">Join circles, connect locally, grow together</p></div>
+        <Button onClick={() => setShowCreate(true)} className="bg-emerald-500 hover:bg-emerald-600 rounded-full"><Plus className="w-4 h-4 mr-2" /> Create</Button>
+      </div>
+      <Card className="bg-white/[0.03] border-white/5 mb-6">
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && loadCommunities(search, filterType)} placeholder="Search communities..." className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-slate-600" /></div>
+            <select value={filterType} onChange={e => { setFilterType(e.target.value); loadCommunities(search, e.target.value); }} className="h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">
+              <option value="" className="bg-slate-900">All Types</option>{['industry', 'city', 'topic', 'role', 'alumni', 'private'].map(t => <option key={t} value={t} className="bg-slate-900">{t}</option>)}</select>
+          </div>
+        </CardContent>
+      </Card>
+      {loading ? <div className="text-center py-12"><div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div> :
+        communities.length === 0 ? <Card className="bg-white/[0.03] border-white/5"><CardContent className="py-16 text-center"><Globe className="w-12 h-12 text-slate-600 mx-auto mb-4" /><h3 className="text-lg text-white mb-2">No communities found</h3></CardContent></Card> :
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{communities.map(c => {
+          const TypeIcon = typeIcons[c.type] || Sparkles;
+          return (
+            <Card key={c.community_id} className="bg-white/[0.03] border-white/5 hover:border-white/10 transition-all hover:-translate-y-0.5 cursor-pointer" onClick={() => openCommunity(c)}>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${typeColors[c.type] || typeColors.topic} flex items-center justify-center flex-shrink-0`}><TypeIcon className="w-6 h-6 text-white" /></div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-white truncate">{c.name}</h3>
+                    <p className="text-xs text-slate-400">{c.type} • {c.members_count || 0} members</p>
+                  </div>
+                  {!c.is_member ? <Button size="sm" onClick={e => { e.stopPropagation(); joinCommunity(c.community_id); }} className="bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-xs rounded-full h-7 px-3">Join</Button>
+                    : <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400">Joined</span>}
+                </div>
+                {c.description && <p className="text-xs text-slate-400 mt-2 line-clamp-2">{c.description}</p>}
+              </CardContent>
+            </Card>
+          );
+        })}</div>}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="bg-slate-900 border-white/10 text-white max-w-lg">
+          <DialogHeader><DialogTitle>Create Community</DialogTitle></DialogHeader>
+          <div className="space-y-3 mt-2">
+            <div><label className="text-sm text-slate-400">Name *</label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="mt-1 bg-white/5 border-white/10 text-white" placeholder="e.g. SaaS India" /></div>
+            <div><label className="text-sm text-slate-400">Type</label><select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className="mt-1 w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">{['industry', 'city', 'topic', 'role', 'alumni', 'private'].map(t => <option key={t} value={t} className="bg-slate-900">{t}</option>)}</select></div>
+            <div><label className="text-sm text-slate-400">Description</label><textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="mt-1 w-full min-h-[60px] bg-white/5 border border-white/10 rounded-md p-3 text-white text-sm resize-none" /></div>
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" onClick={() => setShowCreate(false)} className="flex-1 border-white/10 text-white hover:bg-white/5">Cancel</Button>
+              <Button onClick={createCommunity} disabled={!form.name} className="flex-1 bg-emerald-500 hover:bg-emerald-600">Create</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ======================= EVENTS VIEW =======================
+function EventsView() {
+  const { user } = useApp();
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ title: '', description: '', type: 'meetup', format: 'physical', date: '', location: '', venue: '', virtual_link: '', capacity: 100, price: 0 });
+
+  useEffect(() => { loadEvents(); }, []);
+
+  const loadEvents = async (q = '', type = '') => {
+    setLoading(true);
+    try { const p = new URLSearchParams(); if (q) p.set('q', q); if (type) p.set('type', type);
+      const r = await fetch(`/api/events?${p}`, { credentials: 'include' }); if (r.ok) { const d = await r.json(); setEvents(d.events || []); }
+    } catch (e) {} setLoading(false);
+  };
+
+  const createEvent = async () => {
+    try { const r = await fetch('/api/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form), credentials: 'include' });
+      if (r.ok) { const e = await r.json(); setEvents(prev => [e, ...prev]); setShowCreate(false); }
+    } catch (e) {}
+  };
+
+  const rsvpEvent = async (eventId) => {
+    try { const r = await fetch(`/api/events/${eventId}/rsvp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'going' }), credentials: 'include' });
+      if (r.ok) { const d = await r.json(); setEvents(prev => prev.map(e => e.event_id === eventId ? { ...e, user_rsvp: d.action === 'removed' ? null : 'going', attendees_count: d.action === 'removed' ? (e.attendees_count || 1) - 1 : (e.attendees_count || 0) + 1 } : e)); }
+    } catch (e) {}
+  };
+
+  const eventTypeIcons = { meetup: Users, conference: Crown, workshop: GraduationCap, webinar: Globe, demo_day: Rocket };
+  const formatDate = (d) => { try { return new Date(d).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 pt-20 pb-8">
+      <div className="flex items-center justify-between mb-6">
+        <div><h1 className="text-2xl font-bold text-white">Events</h1><p className="text-slate-400 text-sm mt-1">Discover meetups, conferences, and workshops</p></div>
+        <Button onClick={() => setShowCreate(true)} className="bg-emerald-500 hover:bg-emerald-600 rounded-full"><Plus className="w-4 h-4 mr-2" /> Create Event</Button>
+      </div>
+      <Card className="bg-white/[0.03] border-white/5 mb-6">
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && loadEvents(search, filterType)} placeholder="Search events..." className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-slate-600" /></div>
+            <select value={filterType} onChange={e => { setFilterType(e.target.value); loadEvents(search, e.target.value); }} className="h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">
+              <option value="" className="bg-slate-900">All Types</option>{['meetup', 'conference', 'workshop', 'webinar', 'demo_day'].map(t => <option key={t} value={t} className="bg-slate-900">{t}</option>)}</select>
+          </div>
+        </CardContent>
+      </Card>
+      {loading ? <div className="text-center py-12"><div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div> :
+        events.length === 0 ? <Card className="bg-white/[0.03] border-white/5"><CardContent className="py-16 text-center"><Calendar className="w-12 h-12 text-slate-600 mx-auto mb-4" /><h3 className="text-lg text-white mb-2">No events found</h3></CardContent></Card> :
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{events.map(e => {
+          const EIcon = eventTypeIcons[e.type] || Users;
+          return (
+            <Card key={e.event_id} className="bg-white/[0.03] border-white/5 hover:border-white/10 transition-all overflow-hidden">
+              <div className="h-2 bg-gradient-to-r from-emerald-500 to-blue-500" />
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500/20 to-blue-500/20 flex flex-col items-center justify-center flex-shrink-0">
+                    {e.date ? <><span className="text-[10px] text-slate-400 uppercase">{new Date(e.date).toLocaleDateString('en', { month: 'short' })}</span><span className="text-lg font-bold text-white leading-none">{new Date(e.date).getDate()}</span></> : <EIcon className="w-6 h-6 text-emerald-400" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-white">{e.title}</h3>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400">{e.type?.replace('_', ' ')}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400">{e.format}</span>
+                      {e.price > 0 && <span className="text-xs text-amber-400">&#8377;{e.price}</span>}
+                      {e.price === 0 && <span className="text-xs text-emerald-400">Free</span>}
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                      {e.date && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{formatDate(e.date)}</span>}
+                      {e.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{e.location}</span>}
+                    </div>
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-xs text-slate-500">{e.attendees_count || 0} / {e.capacity} attending</span>
+                      <Button size="sm" onClick={() => rsvpEvent(e.event_id)}
+                        className={`rounded-full text-xs h-7 px-4 ${e.user_rsvp ? 'bg-emerald-500 text-white' : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'}`}>
+                        {e.user_rsvp ? <><Check className="w-3 h-3 mr-1" /> Going</> : 'RSVP'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}</div>}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="bg-slate-900 border-white/10 text-white max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Create Event</DialogTitle></DialogHeader>
+          <div className="space-y-3 mt-2">
+            <div><label className="text-sm text-slate-400">Title *</label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className="mt-1 bg-white/5 border-white/10 text-white" placeholder="e.g. Delhi Founder Night" /></div>
+            <div><label className="text-sm text-slate-400">Description</label><textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="mt-1 w-full min-h-[60px] bg-white/5 border border-white/10 rounded-md p-3 text-white text-sm resize-none" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-sm text-slate-400">Type</label><select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className="mt-1 w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">{['meetup', 'conference', 'workshop', 'webinar', 'demo_day'].map(t => <option key={t} value={t} className="bg-slate-900">{t.replace('_', ' ')}</option>)}</select></div>
+              <div><label className="text-sm text-slate-400">Format</label><select value={form.format} onChange={e => setForm(f => ({ ...f, format: e.target.value }))} className="mt-1 w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">{['physical', 'virtual', 'hybrid'].map(t => <option key={t} value={t} className="bg-slate-900">{t}</option>)}</select></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-sm text-slate-400">Date</label><Input type="datetime-local" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="mt-1 bg-white/5 border-white/10 text-white" /></div>
+              <div><label className="text-sm text-slate-400">Location</label><select value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} className="mt-1 w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm"><option value="" className="bg-slate-900">Select</option>{['Online', ...CITIES].map(c => <option key={c} value={c} className="bg-slate-900">{c}</option>)}</select></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-sm text-slate-400">Capacity</label><Input type="number" value={form.capacity} onChange={e => setForm(f => ({ ...f, capacity: parseInt(e.target.value) || 100 }))} className="mt-1 bg-white/5 border-white/10 text-white" /></div>
+              <div><label className="text-sm text-slate-400">Price (INR, 0=free)</label><Input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: parseInt(e.target.value) || 0 }))} className="mt-1 bg-white/5 border-white/10 text-white" /></div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" onClick={() => setShowCreate(false)} className="flex-1 border-white/10 text-white hover:bg-white/5">Cancel</Button>
+              <Button onClick={createEvent} disabled={!form.title} className="flex-1 bg-emerald-500 hover:bg-emerald-600">Create Event</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ======================= CEO INDEX =======================
 function CEOIndexView() {
   const { setView, setSelectedUserId } = useApp();
@@ -1539,7 +2227,7 @@ export default function App() {
     <AppContext.Provider value={contextValue}>
       {view === 'landing' && <LandingPage />}
       {view === 'onboarding' && <OnboardingView />}
-      {['feed', 'profile', 'network', 'business', 'ceo', 'user-profile'].includes(view) && (
+      {['feed', 'profile', 'network', 'business', 'ceo', 'user-profile', 'jobs', 'messages', 'communities', 'events'].includes(view) && (
         <div className="min-h-screen bg-[hsl(222,47%,5%)]">
           <TopBar />
           {view === 'feed' && <FeedView />}
@@ -1548,6 +2236,10 @@ export default function App() {
           {view === 'business' && <BusinessIndexView />}
           {view === 'ceo' && <CEOIndexView />}
           {view === 'user-profile' && <UserProfileView />}
+          {view === 'jobs' && <JobsView />}
+          {view === 'messages' && <MessagingView />}
+          {view === 'communities' && <CommunitiesView />}
+          {view === 'events' && <EventsView />}
         </div>
       )}
     </AppContext.Provider>
