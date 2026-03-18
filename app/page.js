@@ -60,9 +60,186 @@ const REACTIONS = [
 const AppContext = createContext(null);
 const useApp = () => useContext(AppContext);
 
+// ======================= AUTH DIALOG =======================
+function AuthDialog({ open, onClose, onSuccess }) {
+  const [mode, setMode] = useState('login'); // 'login' or 'signup'
+  const [method, setMethod] = useState('email'); // 'email' or 'oauth'
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [form, setForm] = useState({ email: '', password: '', name: '' });
+
+  const handleEmailAuth = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const endpoint = mode === 'signup' ? '/api/auth/signup' : '/api/auth/login';
+      const body = mode === 'signup' 
+        ? { email: form.email, password: form.password, name: form.name }
+        : { email: form.email, password: form.password };
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        credentials: 'include'
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Authentication failed');
+        setLoading(false);
+        return;
+      }
+
+      onSuccess(data.user, data.is_new);
+    } catch (err) {
+      setError('Something went wrong. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleAuth = () => {
+    window.location.href = 'https://demobackend.emergentagent.com/auth/v1/env/oauth/google?redirect_to=' + encodeURIComponent(window.location.origin);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="bg-card border-border text-foreground max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-foreground text-xl">
+            {mode === 'login' ? 'Welcome Back' : 'Join RoamingCEO'}
+          </DialogTitle>
+          <p className="text-muted-foreground text-sm">
+            {mode === 'login' ? 'Sign in to continue' : 'Create your account to get started'}
+          </p>
+        </DialogHeader>
+
+        <div className="space-y-4 mt-4">
+          {/* Method Toggle */}
+          <div className="flex gap-2 p-1 bg-muted rounded-lg">
+            <button
+              onClick={() => setMethod('email')}
+              className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
+                method === 'email' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Email
+            </button>
+            <button
+              onClick={() => setMethod('oauth')}
+              className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
+                method === 'oauth' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              OAuth
+            </button>
+          </div>
+
+          {method === 'email' ? (
+            <form onSubmit={handleEmailAuth} className="space-y-3">
+              {mode === 'signup' && (
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">Full Name</label>
+                  <Input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="John Doe"
+                    required
+                    className="bg-input border-border text-foreground"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Email</label>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="you@example.com"
+                  required
+                  className="bg-input border-border text-foreground"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Password</label>
+                <Input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  placeholder="••••••••"
+                  required
+                  minLength={6}
+                  className="bg-input border-border text-foreground"
+                />
+                {mode === 'signup' && (
+                  <p className="text-xs text-muted-foreground mt-1">At least 6 characters</p>
+                )}
+              </div>
+              {error && (
+                <div className="text-sm text-red-500 bg-red-500/10 border border-red-500/20 rounded-md p-2">
+                  {error}
+                </div>
+              )}
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-emerald-500 hover:bg-emerald-600 rounded-full"
+              >
+                {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
+              </Button>
+            </form>
+          ) : (
+            <div className="space-y-3">
+              <Button
+                onClick={handleGoogleAuth}
+                variant="outline"
+                className="w-full border-border hover:bg-muted"
+              >
+                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                  <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Continue with Google
+              </Button>
+            </div>
+          )}
+
+          <div className="text-center text-sm">
+            <span className="text-muted-foreground">
+              {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}
+            </span>
+            {' '}
+            <button
+              onClick={() => {
+                setMode(mode === 'login' ? 'signup' : 'login');
+                setError('');
+              }}
+              className="text-emerald-500 hover:underline font-medium"
+            >
+              {mode === 'login' ? 'Sign up' : 'Sign in'}
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ======================= LANDING PAGE =======================
 function LandingPage() {
   const { handleSignIn, theme, toggleTheme } = useApp();
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+
+  const handleAuthSuccess = (user, isNew) => {
+    setShowAuthDialog(false);
+    window.location.reload(); // Reload to update auth state
+  };
   const features = [
     { icon: Shield, title: 'Zero Ads, Ever', desc: 'Your feed stays clean. Revenue from premium tools, not your attention.', color: 'text-emerald-400' },
     { icon: Building2, title: 'Business Identity', desc: 'Rich business profiles with influence scores, beyond generic CV-style pages.', color: 'text-blue-400' },
@@ -98,10 +275,12 @@ function LandingPage() {
             </Button>
             <Button variant="ghost" className="text-foreground/70 hover:text-foreground hidden md:inline-flex" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>Features</Button>
             <Button variant="ghost" className="text-foreground/70 hover:text-foreground hidden md:inline-flex" onClick={() => document.getElementById('tiers')?.scrollIntoView({ behavior: 'smooth' })}>Plans</Button>
-            <Button onClick={handleSignIn} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-6">Join Free</Button>
+            <Button onClick={() => setShowAuthDialog(true)} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-6">Join Free</Button>
           </div>
         </div>
       </nav>
+
+      <AuthDialog open={showAuthDialog} onClose={() => setShowAuthDialog(false)} onSuccess={handleAuthSuccess} />
 
       {/* Hero */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
@@ -132,8 +311,8 @@ function LandingPage() {
             From graduates to CEOs, from freelancers to investors. One platform for networking, business discovery, hiring, investment, and growth.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
-            <Button onClick={handleSignIn} size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-10 py-6 text-lg font-semibold shadow-lg shadow-emerald-500/25">
-              Join Free with Google <ArrowRight className="ml-2 w-5 h-5" />
+            <Button onClick={() => setShowAuthDialog(true)} size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-10 py-6 text-lg font-semibold shadow-lg shadow-emerald-500/25">
+              Join Free <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
             <Button variant="outline" size="lg" className="border-slate-700 text-white hover:bg-white/5 rounded-full px-10 py-6 text-lg"
               onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>

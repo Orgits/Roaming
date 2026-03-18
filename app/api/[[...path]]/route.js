@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
 
 const MONGO_URL = process.env.MONGO_URL;
 const DB_NAME = process.env.DB_NAME && process.env.DB_NAME !== 'your_database_name' ? process.env.DB_NAME : 'roamingceo';
@@ -476,6 +477,132 @@ export async function POST(request, { params }) {
       const response = jsonRes({ user, is_new: isNew });
       response.cookies.set('session_token', session_token, {
         httpOnly: true, secure: true, sameSite: 'none', path: '/', maxAge: 7 * 24 * 60 * 60
+      });
+      return response;
+    }
+
+    // AUTH: Email/Password Signup
+    if (r === 'auth' && a === 'signup') {
+      const { email, password, name } = await request.json();
+      
+      // Validation
+      if (!email || !password || !name) {
+        return jsonRes({ error: 'Email, password, and name are required' }, 400);
+      }
+      if (password.length < 6) {
+        return jsonRes({ error: 'Password must be at least 6 characters' }, 400);
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return jsonRes({ error: 'Invalid email format' }, 400);
+      }
+
+      const db = await getDb();
+      
+      // Check if user already exists
+      const existing = await db.collection('users').findOne({ email });
+      if (existing) {
+        return jsonRes({ error: 'Email already registered' }, 409);
+      }
+
+      // Hash password
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      // Create new user
+      const userId = `user_${uuidv4().replace(/-/g, '').slice(0, 12)}`;
+      const user = {
+        user_id: userId,
+        email,
+        name,
+        password_hash: passwordHash,
+        picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=10b981&color=fff`,
+        headline: '',
+        summary: '',
+        tier: 'professional',
+        city: '',
+        industry: '',
+        skills: [],
+        experience: [],
+        education: [],
+        profile_completion: 20,
+        status_signals: { open_to_work: false, for_hire: false, seeking_cofounder: false, open_to_investment: false },
+        business_profile: null,
+        connections_count: 0,
+        followers_count: 0,
+        influence_score: 0,
+        onboarding_complete: false,
+        created_at: new Date(),
+        updated_at: new Date()
+      };
+
+      await db.collection('users').insertOne({ ...user });
+
+      // Create session
+      const sessionToken = `session_${uuidv4()}`;
+      await db.collection('sessions').insertOne({
+        user_id: user.user_id,
+        session_token: sessionToken,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        created_at: new Date()
+      });
+
+      // Remove password hash from response
+      delete user.password_hash;
+
+      const response = jsonRes({ user, is_new: true });
+      response.cookies.set('session_token', sessionToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60
+      });
+      return response;
+    }
+
+    // AUTH: Email/Password Login
+    if (r === 'auth' && a === 'login') {
+      const { email, password } = await request.json();
+
+      if (!email || !password) {
+        return jsonRes({ error: 'Email and password are required' }, 400);
+      }
+
+      const db = await getDb();
+      const user = await db.collection('users').findOne({ email }, { projection: { _id: 0 } });
+
+      if (!user) {
+        return jsonRes({ error: 'Invalid email or password' }, 401);
+      }
+
+      if (!user.password_hash) {
+        return jsonRes({ error: 'This account uses OAuth login. Please sign in with Google.' }, 400);
+      }
+
+      // Verify password
+      const isValid = await bcrypt.compare(password, user.password_hash);
+      if (!isValid) {
+        return jsonRes({ error: 'Invalid email or password' }, 401);
+      }
+
+      // Create session
+      const sessionToken = `session_${uuidv4()}`;
+      await db.collection('sessions').insertOne({
+        user_id: user.user_id,
+        session_token: sessionToken,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        created_at: new Date()
+      });
+
+      // Remove password hash from response
+      delete user.password_hash;
+
+      const response = jsonRes({ user, is_new: false });
+      response.cookies.set('session_token', sessionToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60
       });
       return response;
     }
