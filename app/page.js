@@ -87,17 +87,17 @@ function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[hsl(222,47%,5%)]">
+    <div className="min-h-screen bg-background">
       {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[hsl(222,47%,5%)]/90 backdrop-blur-md border-b border-white/5">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
           <img src={LOGO_URL} alt="RoamingCEO" className="h-8 md:h-10" />
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-slate-300 hover:text-white h-9 w-9">
+            <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-foreground/70 hover:text-foreground h-9 w-9">
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
-            <Button variant="ghost" className="text-slate-300 hover:text-white hidden md:inline-flex" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>Features</Button>
-            <Button variant="ghost" className="text-slate-300 hover:text-white hidden md:inline-flex" onClick={() => document.getElementById('tiers')?.scrollIntoView({ behavior: 'smooth' })}>Plans</Button>
+            <Button variant="ghost" className="text-foreground/70 hover:text-foreground hidden md:inline-flex" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>Features</Button>
+            <Button variant="ghost" className="text-foreground/70 hover:text-foreground hidden md:inline-flex" onClick={() => document.getElementById('tiers')?.scrollIntoView({ behavior: 'smooth' })}>Plans</Button>
             <Button onClick={handleSignIn} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-6">Join Free</Button>
           </div>
         </div>
@@ -550,7 +550,7 @@ function PostCard({ post, onReact }) {
   };
 
   return (
-    <Card className="bg-white/[0.03] border-white/5 hover:border-white/10 transition-colors overflow-hidden">
+    <Card className="bg-card border-border hover:border-border/50 transition-colors overflow-hidden">
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           <Avatar className="h-10 w-10 cursor-pointer" onClick={() => { setSelectedUserId(post.author?.user_id); setView('user-profile'); }}>
@@ -559,7 +559,7 @@ function PostCard({ post, onReact }) {
           </Avatar>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-white text-sm cursor-pointer hover:underline"
+              <span className="font-semibold text-foreground text-sm cursor-pointer hover:underline"
                 onClick={() => { setSelectedUserId(post.author?.user_id); setView('user-profile'); }}>
                 {post.author?.name}
               </span>
@@ -569,43 +569,43 @@ function PostCard({ post, onReact }) {
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500 truncate">{post.author?.headline}</p>
-            <p className="text-[11px] text-slate-600">{post.created_at ? formatDistanceToNow(new Date(post.created_at), { addSuffix: true }) : ''}</p>
+            <p className="text-xs text-muted-foreground truncate">{post.author?.headline}</p>
+            <p className="text-[11px] text-muted-foreground/70">{post.created_at ? formatDistanceToNow(new Date(post.created_at), { addSuffix: true }) : ''}</p>
           </div>
           {post.user_id === user?.user_id && (
             <DropdownMenu>
-              <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-slate-900 border-white/10">
+              <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
+              <DropdownMenuContent className="bg-card border-border">
                 <DropdownMenuItem className="text-red-400 cursor-pointer">Delete</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
         </div>
-        <p className="mt-3 text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">{post.content}</p>
+        <p className="mt-3 text-foreground text-sm whitespace-pre-wrap leading-relaxed">{post.content}</p>
         {post.hashtags?.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
             {post.hashtags.map(h => <span key={h} className="text-xs text-blue-400 hover:underline cursor-pointer">#{h}</span>)}
           </div>
         )}
         {totalReactions > 0 && (
-          <div className="flex items-center gap-1 mt-3 text-xs text-slate-500">
+          <div className="flex items-center gap-1 mt-3 text-xs text-muted-foreground">
             <span className="flex -space-x-1">{REACTIONS.filter(r => post.reactions?.[r.type] > 0).slice(0, 3).map(r => <span key={r.type}>{r.emoji}</span>)}</span>
             <span>{totalReactions}</span>
           </div>
         )}
-        <Separator className="my-3 bg-white/5" />
+        <Separator className="my-3 bg-border" />
         <div className="flex items-center justify-between relative">
           <div className="flex items-center gap-1">
             <div className="relative">
               <Button variant="ghost" size="sm"
-                className={`text-xs gap-1.5 h-8 ${post.user_reaction ? 'text-emerald-400' : 'text-slate-500 hover:text-white'}`}
+                className={`text-xs gap-1.5 h-8 ${post.user_reaction ? 'text-emerald-400' : 'text-muted-foreground hover:text-foreground'}`}
                 onClick={() => onReact(post.post_id, post.user_reaction || 'like')}
                 onMouseEnter={() => setShowReactions(true)} onMouseLeave={() => setShowReactions(false)}>
                 <ThumbsUp className="w-3.5 h-3.5" />
                 {post.user_reaction ? REACTIONS.find(r => r.type === post.user_reaction)?.label : 'Like'}
               </Button>
               {showReactions && (
-                <div className="absolute bottom-full left-0 mb-1 flex gap-1 bg-slate-800 border border-white/10 rounded-full px-2 py-1 shadow-xl z-10"
+                <div className="absolute bottom-full left-0 mb-1 flex gap-1 bg-popover border border-border rounded-full px-2 py-1 shadow-xl z-10"
                   onMouseEnter={() => setShowReactions(true)} onMouseLeave={() => setShowReactions(false)}>
                   {REACTIONS.map(r => (
                     <button key={r.type} onClick={() => { onReact(post.post_id, r.type); setShowReactions(false); }}
@@ -614,14 +614,14 @@ function PostCard({ post, onReact }) {
                 </div>
               )}
             </div>
-            <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-8 text-slate-500 hover:text-white" onClick={loadComments}>
+            <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-8 text-muted-foreground hover:text-foreground" onClick={loadComments}>
               <MessageCircle className="w-3.5 h-3.5" /> {post.comments_count || 0}
             </Button>
-            <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-8 text-slate-500 hover:text-white">
+            <Button variant="ghost" size="sm" className="text-xs gap-1.5 h-8 text-muted-foreground hover:text-foreground">
               <Share2 className="w-3.5 h-3.5" /> Share
             </Button>
           </div>
-          <Button variant="ghost" size="sm" className="text-xs h-8 text-slate-500 hover:text-white">
+          <Button variant="ghost" size="sm" className="text-xs h-8 text-muted-foreground hover:text-foreground">
             <Bookmark className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -635,22 +635,22 @@ function PostCard({ post, onReact }) {
               <div className="flex-1 flex gap-2">
                 <Input value={commentText} onChange={e => setCommentText(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addComment()}
-                  placeholder="Write a comment..." className="flex-1 h-8 text-sm bg-white/5 border-white/10 text-white placeholder:text-slate-600 rounded-full" />
+                  placeholder="Write a comment..." className="flex-1 h-8 text-sm bg-input border-border text-foreground placeholder:text-muted-foreground rounded-full" />
                 <Button size="icon" onClick={addComment} disabled={!commentText.trim()} className="h-8 w-8 bg-emerald-500 hover:bg-emerald-600 rounded-full">
                   <Send className="w-3 h-3" />
                 </Button>
               </div>
             </div>
-            {loadingComments ? <p className="text-xs text-slate-500 text-center">Loading...</p> :
+            {loadingComments ? <p className="text-xs text-muted-foreground text-center">Loading...</p> :
               comments.map(c => (
                 <div key={c.comment_id} className="flex gap-2 ml-9">
                   <Avatar className="h-6 w-6">
                     <AvatarImage src={c.author?.picture} />
-                    <AvatarFallback className="bg-white/10 text-xs">{c.author?.name?.[0]}</AvatarFallback>
+                    <AvatarFallback className="bg-muted text-xs">{c.author?.name?.[0]}</AvatarFallback>
                   </Avatar>
-                  <div className="bg-white/5 rounded-xl px-3 py-2 flex-1">
-                    <span className="text-xs font-medium text-white">{c.author?.name}</span>
-                    <p className="text-xs text-slate-300">{c.content}</p>
+                  <div className="bg-muted rounded-xl px-3 py-2 flex-1">
+                    <span className="text-xs font-medium text-foreground">{c.author?.name}</span>
+                    <p className="text-xs text-foreground/90">{c.content}</p>
                   </div>
                 </div>
               ))
@@ -750,25 +750,25 @@ function FeedView() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Sidebar - Profile Card */}
         <div className="hidden lg:block lg:col-span-3">
-          <Card className="bg-white/[0.03] border-white/5 overflow-hidden sticky top-20">
+          <Card className="bg-card border-border overflow-hidden sticky top-20">
             <div className="h-16 bg-gradient-to-r from-emerald-600/30 to-blue-600/30" />
             <CardContent className="pt-0 -mt-8 text-center">
-              <Avatar className="h-16 w-16 mx-auto border-2 border-[hsl(222,47%,5%)]">
+              <Avatar className="h-16 w-16 mx-auto border-2 border-background">
                 <AvatarImage src={user?.picture} />
                 <AvatarFallback className="bg-emerald-500/20 text-emerald-400">{user?.name?.[0]}</AvatarFallback>
               </Avatar>
-              <h3 className="text-sm font-semibold text-white mt-2">{user?.name}</h3>
-              <p className="text-xs text-slate-400 mt-0.5">{user?.headline || 'Add your headline'}</p>
+              <h3 className="text-sm font-semibold text-foreground mt-2">{user?.name}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{user?.headline || 'Add your headline'}</p>
               <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full border mt-2 ${TIER_COLORS[user?.tier || 'professional']}`}>
                 {TIER_LABELS[user?.tier || 'professional']}
               </span>
-              <Separator className="my-3 bg-white/5" />
+              <Separator className="my-3 bg-border" />
               <div className="flex justify-between text-xs">
-                <div><span className="text-white font-medium">{user?.connections_count || 0}</span><br /><span className="text-slate-500">Connections</span></div>
-                <div><span className="text-white font-medium">{user?.followers_count || 0}</span><br /><span className="text-slate-500">Followers</span></div>
-                <div><span className="text-white font-medium">{user?.influence_score || 0}</span><br /><span className="text-slate-500">Influence</span></div>
+                <div><span className="text-foreground font-medium">{user?.connections_count || 0}</span><br /><span className="text-muted-foreground">Connections</span></div>
+                <div><span className="text-foreground font-medium">{user?.followers_count || 0}</span><br /><span className="text-muted-foreground">Followers</span></div>
+                <div><span className="text-foreground font-medium">{user?.influence_score || 0}</span><br /><span className="text-muted-foreground">Influence</span></div>
               </div>
-              <Button variant="ghost" className="w-full mt-3 text-xs text-slate-400 hover:text-white" onClick={() => setView('profile')}>
+              <Button variant="ghost" className="w-full mt-3 text-xs text-muted-foreground hover:text-foreground" onClick={() => setView('profile')}>
                 View Profile <ArrowRight className="w-3 h-3 ml-1" />
               </Button>
             </CardContent>
@@ -778,7 +778,7 @@ function FeedView() {
         {/* Center - Feed */}
         <div className="lg:col-span-6 space-y-4">
           {/* Create Post */}
-          <Card className="bg-white/[0.03] border-white/5">
+          <Card className="bg-card border-border">
             <CardContent className="p-4">
               <div className="flex gap-3">
                 <Avatar className="h-10 w-10">
@@ -788,10 +788,10 @@ function FeedView() {
                 <div className="flex-1">
                   <textarea value={postContent} onChange={e => setPostContent(e.target.value)}
                     placeholder="Share an insight, ask a question, or post an update..."
-                    className="w-full bg-transparent border-none outline-none text-sm text-white placeholder:text-slate-600 resize-none min-h-[60px]"
+                    className="w-full bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground resize-none min-h-[60px]"
                     rows={2} />
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-slate-600">{postContent.length}/3000</span>
+                    <span className="text-xs text-muted-foreground">{postContent.length}/3000</span>
                     <Button onClick={createPost} disabled={!postContent.trim() || creating}
                       className="bg-emerald-500 hover:bg-emerald-600 rounded-full px-6 h-8 text-sm">
                       {creating ? 'Posting...' : 'Post'}
@@ -806,11 +806,11 @@ function FeedView() {
           {loading ? (
             <div className="text-center py-12"><div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div>
           ) : posts.length === 0 ? (
-            <Card className="bg-white/[0.03] border-white/5">
+            <Card className="bg-card border-border">
               <CardContent className="py-16 text-center">
-                <Sparkles className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-white mb-2">Welcome to RoamingCEO!</h3>
-                <p className="text-sm text-slate-400">Be the first to share something. Your network is waiting.</p>
+                <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">Welcome to RoamingCEO!</h3>
+                <p className="text-sm text-muted-foreground">Be the first to share something. Your network is waiting.</p>
               </CardContent>
             </Card>
           ) : (
@@ -821,21 +821,21 @@ function FeedView() {
         {/* Right Sidebar - Suggestions */}
         <div className="hidden lg:block lg:col-span-3">
           {suggestions.length > 0 && (
-            <Card className="bg-white/[0.03] border-white/5 sticky top-20">
+            <Card className="bg-card border-border sticky top-20">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm text-slate-400 font-medium">People you may know</CardTitle>
+                <CardTitle className="text-sm text-muted-foreground font-medium">People you may know</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {suggestions.map(s => (
                   <div key={s.user_id} className="flex items-center gap-3">
                     <Avatar className="h-9 w-9 cursor-pointer" onClick={() => { setSelectedUserId(s.user_id); setView('user-profile'); }}>
                       <AvatarImage src={s.picture} />
-                      <AvatarFallback className="bg-white/10 text-xs">{s.name?.[0]}</AvatarFallback>
+                      <AvatarFallback className="bg-muted text-xs">{s.name?.[0]}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-white truncate cursor-pointer hover:underline"
+                      <p className="text-xs font-medium text-foreground truncate cursor-pointer hover:underline"
                         onClick={() => { setSelectedUserId(s.user_id); setView('user-profile'); }}>{s.name}</p>
-                      <p className="text-[10px] text-slate-500 truncate">{s.headline || s.city}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{s.headline || s.city}</p>
                     </div>
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-400 hover:bg-emerald-500/10"
                       onClick={() => sendConnectionRequest(s.user_id)}>
