@@ -236,9 +236,10 @@ function LandingPage() {
   const { handleSignIn, theme, toggleTheme } = useApp();
   const [showAuthDialog, setShowAuthDialog] = useState(false);
 
-  const handleAuthSuccess = (user, isNew) => {
+  const handleAuthSuccess = async (user, isNew) => {
     setShowAuthDialog(false);
-    window.location.reload(); // Reload to update auth state
+    // Update the user state directly instead of reloading
+    window.location.reload();
   };
   const features = [
     { icon: Shield, title: 'Zero Ads, Ever', desc: 'Your feed stays clean. Revenue from premium tools, not your attention.', color: 'text-emerald-400' },
@@ -298,8 +299,8 @@ function LandingPage() {
             </div>
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-            <span className="text-white">LinkedIn is where you </span>
-            <span className="text-slate-400">exist.</span>
+            <span className="text-foreground">LinkedIn is where you </span>
+            <span className="text-muted-foreground">exist.</span>
             <br />
             <span className="bg-gradient-to-r from-emerald-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
               RoamingCEO is where you
@@ -307,14 +308,14 @@ function LandingPage() {
             <br />
             <span className="bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">do business.</span>
           </h1>
-          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
             From graduates to CEOs, from freelancers to investors. One platform for networking, business discovery, hiring, investment, and growth.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
             <Button onClick={() => setShowAuthDialog(true)} size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-10 py-6 text-lg font-semibold shadow-lg shadow-emerald-500/25">
               Join Free <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
-            <Button variant="outline" size="lg" className="border-slate-700 text-white hover:bg-white/5 rounded-full px-10 py-6 text-lg"
+            <Button variant="outline" size="lg" className="border-border text-foreground hover:bg-muted rounded-full px-10 py-6 text-lg"
               onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>
               Learn More
             </Button>
@@ -322,8 +323,8 @@ function LandingPage() {
           <div className="flex flex-wrap justify-center gap-8 mt-16 animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
             {[{ n: '10,000+', l: 'Professionals' }, { n: '2,500+', l: 'Companies' }, { n: '500+', l: 'Investors' }, { n: '15+', l: 'Cities' }].map(s => (
               <div key={s.l} className="text-center">
-                <div className="text-2xl md:text-3xl font-bold text-white">{s.n}</div>
-                <div className="text-sm text-slate-500">{s.l}</div>
+                <div className="text-2xl md:text-3xl font-bold text-foreground">{s.n}</div>
+                <div className="text-sm text-muted-foreground">{s.l}</div>
               </div>
             ))}
           </div>
@@ -334,18 +335,18 @@ function LandingPage() {
       <section id="features" className="py-24 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">Built for the Indian Business Ecosystem</h2>
-            <p className="text-slate-400 text-lg max-w-2xl mx-auto">Every feature is a deliberate decision to serve professionals better than anyone has before.</p>
+            <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">Built for the Indian Business Ecosystem</h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">Every feature is a deliberate decision to serve professionals better than anyone has before.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map(f => (
-              <Card key={f.title} className="bg-white/[0.03] border-white/10 hover:border-white/20 transition-all duration-300 hover:-translate-y-1">
+              <Card key={f.title} className="bg-card border-border hover:border-border/50 transition-all duration-300 hover:-translate-y-1">
                 <CardContent className="pt-6">
-                  <div className={`w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-4`}>
+                  <div className={`w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4`}>
                     <f.icon className={`w-6 h-6 ${f.color}`} />
                   </div>
-                  <h3 className="text-xl font-semibold text-white mb-2">{f.title}</h3>
-                  <p className="text-slate-400">{f.desc}</p>
+                  <h3 className="text-xl font-semibold text-foreground mb-2">{f.title}</h3>
+                  <p className="text-muted-foreground">{f.desc}</p>
                 </CardContent>
               </Card>
             ))}
@@ -354,19 +355,19 @@ function LandingPage() {
       </section>
 
       {/* Comparison */}
-      <section className="py-24 px-4 bg-white/[0.02]">
+      <section className="py-24 px-4 bg-card/30">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl md:text-5xl font-bold text-white text-center mb-16">Why Not LinkedIn?</h2>
+          <h2 className="text-3xl md:text-5xl font-bold text-foreground text-center mb-16">Why Not LinkedIn?</h2>
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-4 px-4 pb-4">
-              <div className="text-sm font-medium text-slate-500">Feature</div>
-              <div className="text-sm font-medium text-slate-500 text-center">LinkedIn</div>
+              <div className="text-sm font-medium text-muted-foreground">Feature</div>
+              <div className="text-sm font-medium text-muted-foreground text-center">LinkedIn</div>
               <div className="text-sm font-medium text-emerald-400 text-center">RoamingCEO</div>
             </div>
             {comparisons.map(c => (
-              <div key={c.feature} className="grid grid-cols-3 gap-4 px-4 py-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors">
-                <div className="text-white font-medium text-sm">{c.feature}</div>
-                <div className="text-slate-500 text-sm text-center">{c.linkedin}</div>
+              <div key={c.feature} className="grid grid-cols-3 gap-4 px-4 py-4 rounded-xl bg-card border border-border hover:border-border/50 transition-colors">
+                <div className="text-foreground font-medium text-sm">{c.feature}</div>
+                <div className="text-muted-foreground text-sm text-center">{c.linkedin}</div>
                 <div className="text-emerald-400 text-sm text-center font-medium">{c.rc}</div>
               </div>
             ))}
@@ -378,26 +379,26 @@ function LandingPage() {
       <section id="tiers" className="py-24 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">One Platform, Four Identities</h2>
-            <p className="text-slate-400 text-lg">All tiers are free at launch. Premium features unlock deeper capabilities.</p>
+            <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">One Platform, Four Identities</h2>
+            <p className="text-muted-foreground text-lg">All tiers are free at launch. Premium features unlock deeper capabilities.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {tiers.map(t => (
-              <Card key={t.name} className={`bg-gradient-to-b ${t.bg} border-t-2 ${t.color} border-x-white/5 border-b-white/5 hover:-translate-y-1 transition-all duration-300`}>
+              <Card key={t.name} className={`bg-gradient-to-b ${t.bg} border-t-2 ${t.color} border-x-border border-b-border hover:-translate-y-1 transition-all duration-300`}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className={`w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center`}>
-                      <t.icon className="w-5 h-5 text-white" />
+                    <div className={`w-10 h-10 rounded-lg bg-muted flex items-center justify-center`}>
+                      <t.icon className="w-5 h-5 text-foreground" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-white">{t.name}</h3>
-                      <p className="text-xs text-slate-500">{t.desc}</p>
+                      <h3 className="text-lg font-bold text-foreground">{t.name}</h3>
+                      <p className="text-xs text-muted-foreground">{t.desc}</p>
                     </div>
                   </div>
-                  <Separator className="my-4 bg-white/10" />
+                  <Separator className="my-4 bg-border" />
                   <ul className="space-y-2">
                     {t.features.map(f => (
-                      <li key={f} className="flex items-start gap-2 text-sm text-slate-300">
+                      <li key={f} className="flex items-start gap-2 text-sm text-foreground/80">
                         <Check className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
                         {f}
                       </li>
@@ -415,11 +416,11 @@ function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           <div className="relative rounded-3xl overflow-hidden p-12 md:p-20">
             <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/20 via-blue-600/20 to-purple-600/20" />
-            <div className="absolute inset-0 bg-white/[0.02] backdrop-blur-sm border border-white/10 rounded-3xl" />
+            <div className="absolute inset-0 bg-card/50 backdrop-blur-sm border border-border rounded-3xl" />
             <div className="relative z-10">
-              <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">Ready to Do Business?</h2>
-              <p className="text-slate-400 text-lg mb-8">Join thousands of professionals building real business connections.</p>
-              <Button onClick={handleSignIn} size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-12 py-6 text-lg font-semibold shadow-lg shadow-emerald-500/25">
+              <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">Ready to Do Business?</h2>
+              <p className="text-muted-foreground text-lg mb-8">Join thousands of professionals building real business connections.</p>
+              <Button onClick={() => setShowAuthDialog(true)} size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-12 py-6 text-lg font-semibold shadow-lg shadow-emerald-500/25">
                 Get Started Free <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </div>
