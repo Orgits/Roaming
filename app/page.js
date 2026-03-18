@@ -1333,6 +1333,8 @@ function UserProfileView() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [connStatus, setConnStatus] = useState(null);
+  const [showConnectDialog, setShowConnectDialog] = useState(false);
+  const [connectNote, setConnectNote] = useState('');
 
   useEffect(() => {
     if (selectedUserId) loadProfile();
@@ -1347,66 +1349,97 @@ function UserProfileView() {
     setLoading(false);
   };
 
-  const connect = async () => {
+  const sendConnectionRequest = async () => {
     try {
       const res = await fetch('/api/connections/request', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipient_id: selectedUserId }), credentials: 'include'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipient_id: selectedUserId, note: connectNote }),
+        credentials: 'include'
       });
-      if (res.ok) setConnStatus('pending');
-      else { const data = await res.json(); if (data.error?.includes('already exists')) setConnStatus('exists'); }
+      if (res.ok) {
+        setConnStatus('pending');
+        setShowConnectDialog(false);
+        setConnectNote('');
+      } else {
+        const data = await res.json();
+        if (data.error?.includes('already exists')) setConnStatus('exists');
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const sendMessage = async () => {
+    try {
+      const res = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ participant_ids: [user.user_id, selectedUserId] }),
+        credentials: 'include'
+      });
+      if (res.ok) {
+        setView('messages');
+      }
     } catch (e) { console.error(e); }
   };
 
   if (loading) return <div className="pt-20 text-center"><div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto mt-12" /></div>;
-  if (!profile) return <div className="pt-20 text-center text-slate-400">User not found</div>;
+  if (!profile) return <div className="pt-20 text-center text-muted-foreground">User not found</div>;
 
   return (
     <div className="max-w-4xl mx-auto px-4 pt-20 pb-8">
-      <Button variant="ghost" className="text-slate-400 hover:text-white mb-4" onClick={() => setView('feed')}>&larr; Back</Button>
-      <Card className="bg-white/[0.03] border-white/5 overflow-hidden">
-        <div className="h-32 md:h-48 bg-gradient-to-r from-blue-600/30 via-purple-600/20 to-emerald-600/30" />
+      <Button variant="ghost" className="text-muted-foreground hover:text-foreground mb-4" onClick={() => setView('feed')}>&larr; Back</Button>
+      <Card className="bg-card border-border overflow-hidden">
+        <div className="h-32 md:h-48 bg-gradient-to-r from-blue-600/30 via-purple-600/20 to-emerald-600/30"
+          style={profile.cover_photo ? { backgroundImage: `url(${profile.cover_photo})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}} />
         <CardContent className="relative pb-6">
           <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-12 md:-mt-16">
-            <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-[hsl(222,47%,5%)]">
+            <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-background">
               <AvatarImage src={profile.picture} />
               <AvatarFallback className="bg-emerald-500/20 text-emerald-400 text-3xl">{profile.name?.[0]}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-bold text-white">{profile.name}</h1>
+                <h1 className="text-2xl font-bold text-foreground">{profile.name}</h1>
                 <span className={`text-xs px-2.5 py-1 rounded-full border ${TIER_COLORS[profile.tier]}`}>{TIER_LABELS[profile.tier]}</span>
               </div>
-              <p className="text-slate-300 mt-1">{profile.headline}</p>
-              <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
+              <p className="text-foreground/90 mt-1">{profile.headline}</p>
+              <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                 {profile.city && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{profile.city}</span>}
                 {profile.industry && <span className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" />{profile.industry}</span>}
                 <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{profile.connections_count || 0} connections</span>
               </div>
             </div>
             {profile.user_id !== user?.user_id && (
-              <Button onClick={connect} disabled={connStatus === 'pending' || connStatus === 'exists'}
-                className={`rounded-full px-6 ${connStatus ? 'bg-slate-700' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
-                {connStatus === 'pending' ? 'Request Sent' : connStatus === 'exists' ? 'Connected' : <><UserPlus className="w-4 h-4 mr-2" /> Connect</>}
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={sendMessage} variant="outline" className="rounded-full px-4 border-border">
+                  <MessageSquare className="w-4 h-4 mr-2" /> Message
+                </Button>
+                <Button
+                  onClick={() => setShowConnectDialog(true)}
+                  disabled={connStatus === 'pending' || connStatus === 'exists'}
+                  className={`rounded-full px-6 ${connStatus ? 'bg-muted' : 'bg-emerald-500 hover:bg-emerald-600'}`}
+                >
+                  {connStatus === 'pending' ? 'Request Sent' : connStatus === 'exists' ? 'Connected' : <><UserPlus className="w-4 h-4 mr-2" /> Connect</>}
+                </Button>
+              </div>
             )}
           </div>
           {profile.summary && (
             <div className="mt-6">
-              <h2 className="text-lg font-semibold text-white mb-2">About</h2>
-              <p className="text-sm text-slate-300 leading-relaxed">{profile.summary}</p>
+              <h2 className="text-lg font-semibold text-foreground mb-2">About</h2>
+              <p className="text-sm text-foreground/90 leading-relaxed">{profile.summary}</p>
             </div>
           )}
           {profile.skills?.length > 0 && (
             <div className="mt-6">
-              <h2 className="text-lg font-semibold text-white mb-3">Skills</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-3">Skills</h2>
               <div className="flex flex-wrap gap-2">
-                {profile.skills.map(s => <span key={s} className="text-xs px-3 py-1.5 rounded-full bg-white/5 text-slate-300 border border-white/10">{s}</span>)}
+                {profile.skills.map(s => <span key={s} className="text-xs px-3 py-1.5 rounded-full bg-muted text-foreground border border-border">{s}</span>)}
               </div>
             </div>
           )}
           {profile.business_profile?.name && (
-            <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-emerald-500/5 to-blue-500/5 border border-white/5">
+            <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-emerald-500/5 to-blue-500/5 border border-border">
               <div className="flex items-center gap-3">
                 <Building2 className="w-5 h-5 text-emerald-400" />
                 <div>
@@ -1418,6 +1451,38 @@ function UserProfileView() {
           )}
         </CardContent>
       </Card>
+
+      {/* Connect Dialog */}
+      <Dialog open={showConnectDialog} onOpenChange={setShowConnectDialog}>
+        <DialogContent className="bg-card border-border text-foreground">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Connect with {profile.name}</DialogTitle>
+            <p className="text-sm text-muted-foreground">Add a personalized note to your connection request</p>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <label className="text-sm text-muted-foreground mb-2 block">Your message (optional)</label>
+              <textarea
+                value={connectNote}
+                onChange={(e) => setConnectNote(e.target.value)}
+                placeholder={`Hi ${profile.name?.split(' ')[0]}, I'd like to connect with you...`}
+                maxLength={300}
+                rows={4}
+                className="w-full bg-input border border-border rounded-md p-3 text-foreground text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <p className="text-xs text-muted-foreground mt-1">{connectNote.length}/300 characters</p>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setShowConnectDialog(false)} className="flex-1 border-border">
+                Cancel
+              </Button>
+              <Button onClick={sendConnectionRequest} className="flex-1 bg-emerald-500 hover:bg-emerald-600">
+                Send Request
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

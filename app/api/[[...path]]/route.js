@@ -957,7 +957,7 @@ export async function PUT(request, { params }) {
       if (!user) return jsonRes({ error: 'Not authenticated' }, 401);
       const body = await request.json();
       const db = await getDb();
-      const allowed = ['name', 'headline', 'summary', 'city', 'industry', 'skills', 'experience', 'education', 'status_signals', 'business_profile', 'picture', 'cover_photo', 'website', 'phone', 'social_links', 'tier'];
+      const allowed = ['name', 'headline', 'summary', 'city', 'industry', 'skills', 'experience', 'education', 'status_signals', 'business_profile', 'picture', 'cover_photo', 'website', 'phone', 'social_links', 'tier', 'certificates', 'licenses', 'projects', 'publications', 'awards'];
       const update = {};
       for (const f of allowed) if (body[f] !== undefined) update[f] = body[f];
       update.updated_at = new Date();
