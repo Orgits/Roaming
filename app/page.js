@@ -16,7 +16,7 @@ import {
   Plus, ThumbsUp, MapPin, Calendar, LogOut, ArrowRight, Sparkles,
   Globe, Shield, TrendingUp, UserPlus, Check, X, Briefcase, GraduationCap,
   Rocket, Laptop, Send, MessageCircle, Share2, Bookmark, MoreHorizontal,
-  Edit, Zap, Target, BarChart3, Menu, ChevronDown, Heart, Award, Eye
+  Edit, Zap, Target, BarChart3, Menu, ChevronDown, Heart, Award, Eye, Moon, Sun
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -62,7 +62,7 @@ const useApp = () => useContext(AppContext);
 
 // ======================= LANDING PAGE =======================
 function LandingPage() {
-  const { handleSignIn } = useApp();
+  const { handleSignIn, theme, toggleTheme } = useApp();
   const features = [
     { icon: Shield, title: 'Zero Ads, Ever', desc: 'Your feed stays clean. Revenue from premium tools, not your attention.', color: 'text-emerald-400' },
     { icon: Building2, title: 'Business Identity', desc: 'Rich business profiles with influence scores, beyond generic CV-style pages.', color: 'text-blue-400' },
@@ -93,6 +93,9 @@ function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
           <img src={LOGO_URL} alt="RoamingCEO" className="h-8 md:h-10" />
           <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-slate-300 hover:text-white h-9 w-9">
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
             <Button variant="ghost" className="text-slate-300 hover:text-white hidden md:inline-flex" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>Features</Button>
             <Button variant="ghost" className="text-slate-300 hover:text-white hidden md:inline-flex" onClick={() => document.getElementById('tiers')?.scrollIntoView({ behavior: 'smooth' })}>Plans</Button>
             <Button onClick={handleSignIn} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-6">Join Free</Button>
@@ -288,32 +291,32 @@ function OnboardingView() {
   };
 
   return (
-    <div className="min-h-screen bg-[hsl(222,47%,5%)] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
           <img src={LOGO_URL} alt="RoamingCEO" className="h-10 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white">Welcome, {user?.name?.split(' ')[0]}!</h1>
-          <p className="text-slate-400 mt-1">Let&apos;s set up your profile</p>
+          <h1 className="text-2xl font-bold text-foreground">Welcome, {user?.name?.split(' ')[0]}!</h1>
+          <p className="text-muted-foreground mt-1">Let&apos;s set up your profile</p>
           <div className="flex items-center justify-center gap-2 mt-6">
             {[1, 2, ...(needsBiz ? [3] : [])].map(s => (
-              <div key={s} className={`h-2 rounded-full transition-all ${s === step ? 'w-10 bg-emerald-500' : s < step ? 'w-10 bg-emerald-500/50' : 'w-10 bg-slate-800'}`} />
+              <div key={s} className={`h-2 rounded-full transition-all ${s === step ? 'w-10 bg-emerald-500' : s < step ? 'w-10 bg-emerald-500/50' : 'w-10 bg-muted'}`} />
             ))}
           </div>
         </div>
 
         {step === 1 && (
           <div className="space-y-4 animate-fade-in-up">
-            <h2 className="text-xl font-semibold text-white text-center mb-6">What describes you best?</h2>
+            <h2 className="text-xl font-semibold text-foreground text-center mb-6">What describes you best?</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {ROLES.map(role => (
                 <button key={role.id} onClick={() => setSelectedRole(role)}
-                  className={`flex items-start gap-4 p-4 rounded-xl border transition-all text-left ${selectedRole?.id === role.id ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-white/[0.02] hover:border-white/20'}`}>
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${selectedRole?.id === role.id ? 'bg-emerald-500/20' : 'bg-white/5'}`}>
-                    <role.icon className={`w-5 h-5 ${selectedRole?.id === role.id ? 'text-emerald-400' : 'text-slate-400'}`} />
+                  className={`flex items-start gap-4 p-4 rounded-xl border transition-all text-left ${selectedRole?.id === role.id ? 'border-emerald-500 bg-emerald-500/10' : 'border-border bg-card hover:border-border/50'}`}>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${selectedRole?.id === role.id ? 'bg-emerald-500/20' : 'bg-muted'}`}>
+                    <role.icon className={`w-5 h-5 ${selectedRole?.id === role.id ? 'text-emerald-400' : 'text-muted-foreground'}`} />
                   </div>
                   <div>
-                    <div className="font-medium text-white">{role.label}</div>
-                    <div className="text-sm text-slate-400">{role.desc}</div>
+                    <div className="font-medium text-foreground">{role.label}</div>
+                    <div className="text-sm text-muted-foreground">{role.desc}</div>
                   </div>
                 </button>
               ))}
@@ -326,35 +329,35 @@ function OnboardingView() {
 
         {step === 2 && (
           <div className="space-y-4 animate-fade-in-up">
-            <h2 className="text-xl font-semibold text-white text-center mb-6">Tell us about yourself</h2>
+            <h2 className="text-xl font-semibold text-foreground text-center mb-6">Tell us about yourself</h2>
             <div className="space-y-4">
               <div>
-                <label className="text-sm text-slate-400 mb-1 block">Professional Headline</label>
+                <label className="text-sm text-muted-foreground mb-1 block">Professional Headline</label>
                 <Input value={form.headline} onChange={e => setForm(f => ({ ...f, headline: e.target.value }))}
                   placeholder="e.g. CEO at TechCorp | Building the future of fintech"
-                  className="bg-white/5 border-white/10 text-white placeholder:text-slate-600" />
+                  className="bg-input border-border text-foreground placeholder:text-muted-foreground" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-slate-400 mb-1 block">City</label>
+                  <label className="text-sm text-muted-foreground mb-1 block">City</label>
                   <select value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
-                    className="w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">
-                    <option value="" className="bg-slate-900">Select city</option>
-                    {CITIES.map(c => <option key={c} value={c} className="bg-slate-900">{c}</option>)}
+                    className="w-full h-10 rounded-md bg-input border border-border text-foreground px-3 text-sm">
+                    <option value="" className="bg-background">Select city</option>
+                    {CITIES.map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm text-slate-400 mb-1 block">Industry</label>
+                  <label className="text-sm text-muted-foreground mb-1 block">Industry</label>
                   <select value={form.industry} onChange={e => setForm(f => ({ ...f, industry: e.target.value }))}
-                    className="w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">
-                    <option value="" className="bg-slate-900">Select industry</option>
-                    {INDUSTRIES.map(i => <option key={i} value={i} className="bg-slate-900">{i}</option>)}
+                    className="w-full h-10 rounded-md bg-input border border-border text-foreground px-3 text-sm">
+                    <option value="" className="bg-background">Select industry</option>
+                    {INDUSTRIES.map(i => <option key={i} value={i} className="bg-background">{i}</option>)}
                   </select>
                 </div>
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <Button variant="outline" onClick={() => setStep(1)} className="flex-1 border-white/10 text-white hover:bg-white/5 rounded-full py-6">Back</Button>
+              <Button variant="outline" onClick={() => setStep(1)} className="flex-1 border-border text-foreground hover:bg-muted rounded-full py-6">Back</Button>
               <Button onClick={() => needsBiz ? setStep(3) : handleComplete()} disabled={!form.headline || loading}
                 className="flex-1 bg-emerald-500 hover:bg-emerald-600 rounded-full py-6">
                 {loading ? 'Setting up...' : needsBiz ? 'Continue' : 'Complete Setup'}
@@ -365,49 +368,49 @@ function OnboardingView() {
 
         {step === 3 && needsBiz && (
           <div className="space-y-4 animate-fade-in-up">
-            <h2 className="text-xl font-semibold text-white text-center mb-6">Your Business</h2>
+            <h2 className="text-xl font-semibold text-foreground text-center mb-6">Your Business</h2>
             <div className="space-y-4">
               <div>
-                <label className="text-sm text-slate-400 mb-1 block">Company / Business Name</label>
+                <label className="text-sm text-muted-foreground mb-1 block">Company / Business Name</label>
                 <Input value={bizForm.name} onChange={e => setBizForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g. TechCorp India" className="bg-white/5 border-white/10 text-white placeholder:text-slate-600" />
+                  placeholder="e.g. TechCorp India" className="bg-input border-border text-foreground placeholder:text-muted-foreground" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-slate-400 mb-1 block">Industry</label>
+                  <label className="text-sm text-muted-foreground mb-1 block">Industry</label>
                   <select value={bizForm.industry} onChange={e => setBizForm(f => ({ ...f, industry: e.target.value }))}
-                    className="w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">
-                    <option value="" className="bg-slate-900">Select</option>
-                    {INDUSTRIES.map(i => <option key={i} value={i} className="bg-slate-900">{i}</option>)}
+                    className="w-full h-10 rounded-md bg-input border border-border text-foreground px-3 text-sm">
+                    <option value="" className="bg-background">Select</option>
+                    {INDUSTRIES.map(i => <option key={i} value={i} className="bg-background">{i}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm text-slate-400 mb-1 block">Stage</label>
+                  <label className="text-sm text-muted-foreground mb-1 block">Stage</label>
                   <select value={bizForm.stage} onChange={e => setBizForm(f => ({ ...f, stage: e.target.value }))}
-                    className="w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">
-                    <option value="" className="bg-slate-900">Select</option>
-                    {STAGES.map(s => <option key={s} value={s} className="bg-slate-900">{s}</option>)}
+                    className="w-full h-10 rounded-md bg-input border border-border text-foreground px-3 text-sm">
+                    <option value="" className="bg-background">Select</option>
+                    {STAGES.map(s => <option key={s} value={s} className="bg-background">{s}</option>)}
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-slate-400 mb-1 block">City</label>
+                  <label className="text-sm text-muted-foreground mb-1 block">City</label>
                   <select value={bizForm.city} onChange={e => setBizForm(f => ({ ...f, city: e.target.value }))}
-                    className="w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">
-                    <option value="" className="bg-slate-900">Select</option>
-                    {CITIES.map(c => <option key={c} value={c} className="bg-slate-900">{c}</option>)}
+                    className="w-full h-10 rounded-md bg-input border border-border text-foreground px-3 text-sm">
+                    <option value="" className="bg-background">Select</option>
+                    {CITIES.map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm text-slate-400 mb-1 block">Website</label>
+                  <label className="text-sm text-muted-foreground mb-1 block">Website</label>
                   <Input value={bizForm.website} onChange={e => setBizForm(f => ({ ...f, website: e.target.value }))}
-                    placeholder="https://..." className="bg-white/5 border-white/10 text-white placeholder:text-slate-600" />
+                    placeholder="https://..." className="bg-input border-border text-foreground placeholder:text-muted-foreground" />
                 </div>
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <Button variant="outline" onClick={() => setStep(2)} className="flex-1 border-white/10 text-white hover:bg-white/5 rounded-full py-6">Back</Button>
+              <Button variant="outline" onClick={() => setStep(2)} className="flex-1 border-border text-foreground hover:bg-muted rounded-full py-6">Back</Button>
               <Button onClick={handleComplete} disabled={!bizForm.name || loading} className="flex-1 bg-emerald-500 hover:bg-emerald-600 rounded-full py-6">
                 {loading ? 'Setting up...' : 'Complete Setup'} <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
@@ -421,7 +424,7 @@ function OnboardingView() {
 
 // ======================= TOP BAR =======================
 function TopBar() {
-  const { user, view, setView, handleLogout } = useApp();
+  const { user, view, setView, handleLogout, theme, toggleTheme } = useApp();
   const [mobileMenu, setMobileMenu] = useState(false);
   const navItems = [
     { id: 'feed', label: 'Home', icon: Home },
@@ -435,66 +438,69 @@ function TopBar() {
   ];
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-[hsl(222,47%,5%)]/95 backdrop-blur-md border-b border-white/5">
+    <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
         <div className="flex items-center gap-4">
           <img src={LOGO_URL} alt="RoamingCEO" className="h-7 cursor-pointer" onClick={() => setView('feed')} />
           <div className="hidden md:block relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <Input className="pl-9 w-56 lg:w-72 h-9 bg-white/5 border-white/10 text-white placeholder:text-slate-500 text-sm rounded-full" placeholder="Search..." />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input className="pl-9 w-56 lg:w-72 h-9 bg-muted border-border text-foreground placeholder:text-muted-foreground text-sm rounded-full" placeholder="Search..." />
           </div>
         </div>
         <div className="hidden md:flex items-center gap-1">
           {navItems.map(item => (
             <button key={item.id} onClick={() => setView(item.id)}
-              className={`flex flex-col items-center px-4 py-1.5 rounded-lg transition-colors ${view === item.id ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-300'}`}>
+              className={`flex flex-col items-center px-4 py-1.5 rounded-lg transition-colors ${view === item.id ? 'text-emerald-400' : 'text-muted-foreground hover:text-foreground'}`}>
               <item.icon className="w-5 h-5" />
               <span className="text-[10px] mt-0.5">{item.label}</span>
             </button>
           ))}
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="text-slate-500 hover:text-white h-9 w-9">
+          <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-muted-foreground hover:text-foreground h-9 w-9">
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </Button>
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground h-9 w-9">
             <Bell className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-slate-500 hover:text-white h-9 w-9">
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground h-9 w-9">
             <MessageSquare className="w-4 h-4" />
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 ml-1 px-2 py-1 rounded-full hover:bg-white/5 transition-colors">
+              <button className="flex items-center gap-2 ml-1 px-2 py-1 rounded-full hover:bg-muted transition-colors">
                 <Avatar className="h-7 w-7">
                   <AvatarImage src={user?.picture} />
                   <AvatarFallback className="bg-emerald-500/20 text-emerald-400 text-xs">{user?.name?.[0]}</AvatarFallback>
                 </Avatar>
-                <ChevronDown className="w-3 h-3 text-slate-500 hidden md:block" />
+                <ChevronDown className="w-3 h-3 text-muted-foreground hidden md:block" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-slate-900 border-white/10 text-white min-w-[200px]" align="end">
+            <DropdownMenuContent className="bg-card border-border text-foreground min-w-[200px]" align="end">
               <div className="px-3 py-2">
                 <p className="font-medium text-sm">{user?.name}</p>
-                <p className="text-xs text-slate-400">{user?.headline || user?.email}</p>
+                <p className="text-xs text-muted-foreground">{user?.headline || user?.email}</p>
               </div>
-              <DropdownMenuSeparator className="bg-white/10" />
-              <DropdownMenuItem onClick={() => setView('profile')} className="cursor-pointer hover:bg-white/5 text-slate-300">
+              <DropdownMenuSeparator className="bg-border" />
+              <DropdownMenuItem onClick={() => setView('profile')} className="cursor-pointer hover:bg-muted text-foreground">
                 <Edit className="w-4 h-4 mr-2" /> View Profile
               </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-white/10" />
-              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer hover:bg-white/5 text-red-400">
+              <DropdownMenuSeparator className="bg-border" />
+              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer hover:bg-muted text-red-400">
                 <LogOut className="w-4 h-4 mr-2" /> Sign Out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="ghost" size="icon" className="md:hidden text-slate-500 h-9 w-9" onClick={() => setMobileMenu(!mobileMenu)}>
+          <Button variant="ghost" size="icon" className="md:hidden text-muted-foreground h-9 w-9" onClick={() => setMobileMenu(!mobileMenu)}>
             <Menu className="w-5 h-5" />
           </Button>
         </div>
       </div>
       {mobileMenu && (
-        <div className="md:hidden border-t border-white/5 bg-[hsl(222,47%,5%)] px-4 py-3 space-y-1">
+        <div className="md:hidden border-t border-border bg-background px-4 py-3 space-y-1">
           {navItems.map(item => (
             <button key={item.id} onClick={() => { setView(item.id); setMobileMenu(false); }}
-              className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg transition-colors ${view === item.id ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
+              className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg transition-colors ${view === item.id ? 'bg-emerald-500/10 text-emerald-400' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
               <item.icon className="w-4 h-4" /> {item.label}
             </button>
           ))}
@@ -2152,7 +2158,30 @@ export default function App() {
   const [view, setView] = useState('loading');
   const [user, setUser] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState(null);
+  const [theme, setTheme] = useState('dark');
   const hasProcessed = useRef(false);
+
+  // Initialize theme from localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    setTheme(savedTheme);
+    if (savedTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    if (newTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
 
   useEffect(() => {
     // CRITICAL: If returning from OAuth callback, skip the /me check.
@@ -2210,11 +2239,11 @@ export default function App() {
     setView('landing');
   };
 
-  const contextValue = { user, setUser, view, setView, selectedUserId, setSelectedUserId, handleSignIn, handleLogout };
+  const contextValue = { user, setUser, view, setView, selectedUserId, setSelectedUserId, handleSignIn, handleLogout, theme, toggleTheme };
 
   if (view === 'loading') {
     return (
-      <div className="min-h-screen bg-[hsl(222,47%,5%)] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <img src={LOGO_URL} alt="RoamingCEO" className="h-12 mx-auto mb-4 animate-pulse" />
           <div className="animate-spin w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto" />
@@ -2228,7 +2257,7 @@ export default function App() {
       {view === 'landing' && <LandingPage />}
       {view === 'onboarding' && <OnboardingView />}
       {['feed', 'profile', 'network', 'business', 'ceo', 'user-profile', 'jobs', 'messages', 'communities', 'events'].includes(view) && (
-        <div className="min-h-screen bg-[hsl(222,47%,5%)]">
+        <div className="min-h-screen bg-background">
           <TopBar />
           {view === 'feed' && <FeedView />}
           {view === 'profile' && <ProfileView />}
