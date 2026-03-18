@@ -865,6 +865,22 @@ export async function PUT(request, { params }) {
       }
     }
 
+    // ADMIN: Update user status (suspend/activate)
+    if (r === 'admin' && a === 'users' && b) {
+      const admin = await getAuthUser(request);
+      if (!admin || !admin.email?.includes('admin')) {
+        return jsonRes({ error: 'Unauthorized' }, 403);
+      }
+      const body = await request.json();
+      const db = await getDb();
+      const update = {};
+      if (body.status) update.status = body.status; // 'active' or 'suspended'
+      if (body.tier) update.tier = body.tier;
+      update.updated_at = new Date();
+      await db.collection('users').updateOne({ user_id: b }, { $set: update });
+      return jsonRes({ success: true });
+    }
+
     // JOBS: Update
     if (r === 'jobs' && a && !b) {
       const user = await getAuthUser(request);
@@ -955,6 +971,85 @@ export async function DELETE(request, { params }) {
       await db.collection('community_members').deleteOne({ community_id: id, user_id: user.user_id });
       await db.collection('communities').updateOne({ community_id: id }, { $inc: { members_count: -1 } });
       return jsonRes({ success: true });
+    }
+
+    // ADMIN: Get platform stats
+    if (r === 'admin' && a === 'stats') {
+      const user = await getAuthUser(request);
+      // Simple admin check - in production, use proper role-based access
+      if (!user || !user.email?.includes('admin')) {
+        return jsonRes({ error: 'Unauthorized' }, 403);
+      }
+      const db = await getDb();
+      const [usersCount, postsCount, connectionsCount, jobsCount, communitiesCount, eventsCount] = await Promise.all([
+        db.collection('users').countDocuments(),
+        db.collection('posts').countDocuments(),
+        db.collection('connections').countDocuments({ status: 'accepted' }),
+        db.collection('jobs').countDocuments(),
+        db.collection('communities').countDocuments(),
+        db.collection('events').countDocuments(),
+      ]);
+      return jsonRes({
+        users: usersCount,
+        posts: postsCount,
+        connections: connectionsCount,
+        jobs: jobsCount,
+        communities: communitiesCount,
+        events: eventsCount,
+      });
+    }
+
+    // ADMIN: Get all users
+    if (r === 'admin' && a === 'users') {
+      const user = await getAuthUser(request);
+      if (!user || !user.email?.includes('admin')) {
+        return jsonRes({ error: 'Unauthorized' }, 403);
+      }
+      const db = await getDb();
+      const page = parseInt(url.searchParams.get('page') || '1');
+      const limit = parseInt(url.searchParams.get('limit') || '20');
+      const search = url.searchParams.get('search') || '';
+      const tier = url.searchParams.get('tier');
+      const filter = {};
+      if (search) filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+      if (tier) filter.tier = tier;
+      const users = await db.collection('users')
+        .find(filter, { projection: { _id: 0 } })
+        .sort({ created_at: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .toArray();
+      const total = await db.collection('users').countDocuments(filter);
+      return jsonRes({ users, total, page, limit });
+    }
+
+    // ADMIN: Get all posts for moderation
+    if (r === 'admin' && a === 'posts') {
+      const user = await getAuthUser(request);
+      if (!user || !user.email?.includes('admin')) {
+        return jsonRes({ error: 'Unauthorized' }, 403);
+      }
+      const db = await getDb();
+      const page = parseInt(url.searchParams.get('page') || '1');
+      const limit = parseInt(url.searchParams.get('limit') || '20');
+      const posts = await db.collection('posts')
+        .aggregate([
+          { $sort: { created_at: -1 } },
+          { $skip: (page - 1) * limit },
+          { $limit: limit },
+          {
+            $lookup: {
+              from: 'users', localField: 'user_id', foreignField: 'user_id', as: 'author'
+            }
+          },
+          { $unwind: { path: '$author', preserveNullAndEmptyArrays: true } },
+          { $project: { _id: 0, 'author._id': 0 } }
+        ]).toArray();
+      const total = await db.collection('posts').countDocuments();
+      return jsonRes({ posts, total, page, limit });
     }
 
     return jsonRes({ error: 'Not found' }, 404);

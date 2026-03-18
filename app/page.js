@@ -437,6 +437,12 @@ function TopBar() {
     { id: 'ceo', label: 'CEO', icon: Crown },
   ];
 
+  // Add admin option for admin users
+  const isAdmin = user?.email?.includes('admin');
+  if (isAdmin) {
+    navItems.push({ id: 'admin', label: 'Admin', icon: Shield });
+  }
+
   return (
     <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
@@ -857,13 +863,60 @@ function ProfileView() {
   const { user, setUser } = useApp();
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
+  const [uploadingPicture, setUploadingPicture] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const pictureInputRef = useRef(null);
+  const coverInputRef = useRef(null);
 
   const startEdit = () => {
     setEditForm({
-      name: user?.name || '', headline: user?.headline || '', summary: user?.summary || '',
-      city: user?.city || '', industry: user?.industry || '',
+      name: user?.name || '', 
+      headline: user?.headline || '', 
+      summary: user?.summary || '',
+      city: user?.city || '', 
+      industry: user?.industry || '',
+      website: user?.website || '',
+      phone: user?.phone || '',
+      skills: user?.skills || [],
     });
     setEditing(true);
+  };
+
+  const handleImageUpload = async (file, type) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size must be less than 5MB');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result;
+      const field = type === 'picture' ? 'picture' : 'cover_photo';
+      
+      if (type === 'picture') setUploadingPicture(true);
+      else setUploadingCover(true);
+      
+      try {
+        const res = await fetch('/api/users/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ [field]: base64 }),
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const updated = await res.json();
+          setUser(updated);
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Failed to upload image');
+      } finally {
+        if (type === 'picture') setUploadingPicture(false);
+        else setUploadingCover(false);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const saveProfile = async () => {
@@ -876,34 +929,83 @@ function ProfileView() {
     } catch (e) { console.error(e); }
   };
 
+  const addSkill = () => {
+    const skill = prompt('Enter a skill:');
+    if (skill && skill.trim()) {
+      setEditForm(f => ({ ...f, skills: [...(f.skills || []), skill.trim()] }));
+    }
+  };
+
+  const removeSkill = (skillToRemove) => {
+    setEditForm(f => ({ ...f, skills: (f.skills || []).filter(s => s !== skillToRemove) }));
+  };
+
   if (!user) return null;
 
   return (
     <div className="max-w-4xl mx-auto px-4 pt-20 pb-8">
-      <Card className="bg-white/[0.03] border-white/5 overflow-hidden">
-        <div className="h-32 md:h-48 bg-gradient-to-r from-emerald-600/30 via-blue-600/20 to-purple-600/30 relative">
-          <Button variant="ghost" size="icon" className="absolute top-3 right-3 text-white/50 hover:text-white bg-black/20 h-8 w-8" onClick={startEdit}>
+      <Card className="bg-card border-border overflow-hidden">
+        <div className="h-32 md:h-48 bg-gradient-to-r from-emerald-600/30 via-blue-600/20 to-purple-600/30 relative group"
+          style={user.cover_photo ? { backgroundImage: `url(${user.cover_photo})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}>
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleImageUpload(e.target.files[0], 'cover')}
+            />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-white bg-black/50 hover:bg-black/70"
+              onClick={() => coverInputRef.current?.click()}
+              disabled={uploadingCover}
+            >
+              {uploadingCover ? 'Uploading...' : 'Change Cover'}
+            </Button>
+          </div>
+          <Button variant="ghost" size="icon" className="absolute top-3 right-3 text-foreground/70 hover:text-foreground bg-background/20 h-8 w-8 backdrop-blur-sm" onClick={startEdit}>
             <Edit className="w-4 h-4" />
           </Button>
         </div>
         <CardContent className="relative pb-6">
           <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-12 md:-mt-16">
-            <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-[hsl(222,47%,5%)]">
-              <AvatarImage src={user.picture} />
-              <AvatarFallback className="bg-emerald-500/20 text-emerald-400 text-3xl">{user.name?.[0]}</AvatarFallback>
-            </Avatar>
+            <div className="relative group">
+              <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-background">
+                <AvatarImage src={user.picture} />
+                <AvatarFallback className="bg-emerald-500/20 text-emerald-400 text-3xl">{user.name?.[0]}</AvatarFallback>
+              </Avatar>
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full cursor-pointer"
+                onClick={() => pictureInputRef.current?.click()}>
+                <Edit className="w-6 h-6 text-white" />
+              </div>
+              <input
+                ref={pictureInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleImageUpload(e.target.files[0], 'picture')}
+              />
+              {uploadingPicture && (
+                <div className="absolute inset-0 bg-black/80 flex items-center justify-center rounded-full">
+                  <div className="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full" />
+                </div>
+              )}
+            </div>
             <div className="flex-1">
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-bold text-white">{user.name}</h1>
+                <h1 className="text-2xl font-bold text-foreground">{user.name}</h1>
                 <span className={`text-xs px-2.5 py-1 rounded-full border ${TIER_COLORS[user.tier]}`}>
                   {TIER_LABELS[user.tier]}
                 </span>
               </div>
-              <p className="text-slate-300 mt-1">{user.headline || 'Add your professional headline'}</p>
-              <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
+              <p className="text-muted-foreground mt-1">{user.headline || 'Add your professional headline'}</p>
+              <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground flex-wrap">
                 {user.city && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{user.city}</span>}
                 {user.industry && <span className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" />{user.industry}</span>}
                 <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{user.connections_count || 0} connections</span>
+                {user.website && <span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" /><a href={user.website} target="_blank" rel="noopener noreferrer" className="hover:underline">{user.website.replace(/^https?:\/\//, '').split('/')[0]}</a></span>}
               </div>
             </div>
             <Button onClick={startEdit} className="bg-emerald-500 hover:bg-emerald-600 rounded-full px-6">
@@ -913,29 +1015,29 @@ function ProfileView() {
 
           {/* Profile Completion */}
           {user.profile_completion < 80 && (
-            <div className="mt-6 p-4 rounded-xl bg-white/[0.03] border border-white/5">
+            <div className="mt-6 p-4 rounded-xl bg-card border border-border">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-white font-medium">Profile Strength</span>
+                <span className="text-sm text-foreground font-medium">Profile Strength</span>
                 <span className="text-sm text-emerald-400">{user.profile_completion}%</span>
               </div>
-              <Progress value={user.profile_completion} className="h-2 bg-white/10" />
-              <p className="text-xs text-slate-500 mt-2">Complete your profile to rank higher in search and recommendations.</p>
+              <Progress value={user.profile_completion} className="h-2 bg-muted" />
+              <p className="text-xs text-muted-foreground mt-2">Complete your profile to rank higher in search and recommendations.</p>
             </div>
           )}
 
           {/* About */}
           <div className="mt-6">
-            <h2 className="text-lg font-semibold text-white mb-2">About</h2>
-            <p className="text-sm text-slate-300 leading-relaxed">{user.summary || 'Tell your story. Share what drives you professionally.'}</p>
+            <h2 className="text-lg font-semibold text-foreground mb-2">About</h2>
+            <p className="text-sm text-foreground/90 leading-relaxed">{user.summary || 'Tell your story. Share what drives you professionally.'}</p>
           </div>
 
           {/* Skills */}
           {user.skills?.length > 0 && (
             <div className="mt-6">
-              <h2 className="text-lg font-semibold text-white mb-3">Skills</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-3">Skills</h2>
               <div className="flex flex-wrap gap-2">
                 {user.skills.map(s => (
-                  <span key={s} className="text-xs px-3 py-1.5 rounded-full bg-white/5 text-slate-300 border border-white/10">{s}</span>
+                  <span key={s} className="text-xs px-3 py-1.5 rounded-full bg-muted text-foreground border border-border">{s}</span>
                 ))}
               </div>
             </div>
@@ -943,18 +1045,18 @@ function ProfileView() {
 
           {/* Business Profile */}
           {user.business_profile?.name && (
-            <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-emerald-500/5 to-blue-500/5 border border-white/5">
+            <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-emerald-500/5 to-blue-500/5 border border-border">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
                   <Building2 className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white">{user.business_profile.name}</h3>
-                  <p className="text-xs text-slate-400">{user.business_profile.industry} {user.business_profile.stage ? `• ${user.business_profile.stage}` : ''}</p>
+                  <h3 className="font-semibold text-foreground">{user.business_profile.name}</h3>
+                  <p className="text-xs text-muted-foreground">{user.business_profile.industry} {user.business_profile.stage ? `• ${user.business_profile.stage}` : ''}</p>
                 </div>
               </div>
-              {user.business_profile.about && <p className="text-sm text-slate-300">{user.business_profile.about}</p>}
-              <div className="flex flex-wrap gap-4 mt-3 text-xs text-slate-500">
+              {user.business_profile.about && <p className="text-sm text-foreground/90">{user.business_profile.about}</p>}
+              <div className="flex flex-wrap gap-4 mt-3 text-xs text-muted-foreground">
                 {user.business_profile.city && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{user.business_profile.city}</span>}
                 {user.business_profile.website && <span className="flex items-center gap-1"><Globe className="w-3 h-3" />{user.business_profile.website}</span>}
                 {user.business_profile.team_size && <span className="flex items-center gap-1"><Users className="w-3 h-3" />{user.business_profile.team_size}</span>}
@@ -966,47 +1068,76 @@ function ProfileView() {
 
       {/* Edit Dialog */}
       <Dialog open={editing} onOpenChange={setEditing}>
-        <DialogContent className="bg-slate-900 border-white/10 text-white max-w-lg">
+        <DialogContent className="bg-card border-border text-foreground max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Profile</DialogTitle>
+            <DialogTitle className="text-foreground">Edit Profile</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <div>
-              <label className="text-sm text-slate-400">Name</label>
+              <label className="text-sm text-muted-foreground">Name</label>
               <Input value={editForm.name || ''} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                className="mt-1 bg-white/5 border-white/10 text-white" />
+                className="mt-1 bg-input border-border text-foreground" />
             </div>
             <div>
-              <label className="text-sm text-slate-400">Headline</label>
+              <label className="text-sm text-muted-foreground">Headline</label>
               <Input value={editForm.headline || ''} onChange={e => setEditForm(f => ({ ...f, headline: e.target.value }))}
-                className="mt-1 bg-white/5 border-white/10 text-white" />
+                placeholder="e.g. CEO at TechCorp | Building the future" 
+                className="mt-1 bg-input border-border text-foreground" />
             </div>
             <div>
-              <label className="text-sm text-slate-400">Summary</label>
+              <label className="text-sm text-muted-foreground">Summary</label>
               <textarea value={editForm.summary || ''} onChange={e => setEditForm(f => ({ ...f, summary: e.target.value }))}
-                className="mt-1 w-full min-h-[100px] bg-white/5 border border-white/10 rounded-md p-3 text-white text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="mt-1 w-full min-h-[100px] bg-input border border-border rounded-md p-3 text-foreground text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 placeholder="Tell your professional story..." />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm text-slate-400">City</label>
+                <label className="text-sm text-muted-foreground">City</label>
                 <select value={editForm.city || ''} onChange={e => setEditForm(f => ({ ...f, city: e.target.value }))}
-                  className="mt-1 w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">
-                  <option value="" className="bg-slate-900">Select</option>
-                  {CITIES.map(c => <option key={c} value={c} className="bg-slate-900">{c}</option>)}
+                  className="mt-1 w-full h-10 rounded-md bg-input border border-border text-foreground px-3 text-sm">
+                  <option value="" className="bg-background">Select</option>
+                  {CITIES.map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-sm text-slate-400">Industry</label>
+                <label className="text-sm text-muted-foreground">Industry</label>
                 <select value={editForm.industry || ''} onChange={e => setEditForm(f => ({ ...f, industry: e.target.value }))}
-                  className="mt-1 w-full h-10 rounded-md bg-white/5 border border-white/10 text-white px-3 text-sm">
-                  <option value="" className="bg-slate-900">Select</option>
-                  {INDUSTRIES.map(i => <option key={i} value={i} className="bg-slate-900">{i}</option>)}
+                  className="mt-1 w-full h-10 rounded-md bg-input border border-border text-foreground px-3 text-sm">
+                  <option value="" className="bg-background">Select</option>
+                  {INDUSTRIES.map(i => <option key={i} value={i} className="bg-background">{i}</option>)}
                 </select>
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-muted-foreground">Website</label>
+                <Input value={editForm.website || ''} onChange={e => setEditForm(f => ({ ...f, website: e.target.value }))}
+                  placeholder="https://yourwebsite.com"
+                  className="mt-1 bg-input border-border text-foreground" />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Phone</label>
+                <Input value={editForm.phone || ''} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                  placeholder="+91 XXXXX XXXXX"
+                  className="mt-1 bg-input border-border text-foreground" />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground mb-2 block">Skills</label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {(editForm.skills || []).map(s => (
+                  <span key={s} className="text-xs px-3 py-1.5 rounded-full bg-muted text-foreground border border-border flex items-center gap-2">
+                    {s}
+                    <button onClick={() => removeSkill(s)} className="hover:text-red-400">×</button>
+                  </span>
+                ))}
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={addSkill} className="border-border">
+                <Plus className="w-3 h-3 mr-1" /> Add Skill
+              </Button>
+            </div>
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" onClick={() => setEditing(false)} className="flex-1 border-white/10 text-white hover:bg-white/5">Cancel</Button>
+              <Button variant="outline" onClick={() => setEditing(false)} className="flex-1 border-border text-foreground hover:bg-muted">Cancel</Button>
               <Button onClick={saveProfile} className="flex-1 bg-emerald-500 hover:bg-emerald-600">Save Changes</Button>
             </div>
           </div>
@@ -2154,6 +2285,201 @@ function CEOIndexView() {
 }
 
 // ======================= MAIN APP =======================
+// ======================= ADMIN PANEL =======================
+function AdminPanelView() {
+  const { user } = useApp();
+  const [tab, setTab] = useState('stats');
+  const [stats, setStats] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    if (tab === 'stats') loadStats();
+    else if (tab === 'users') loadUsers();
+    else if (tab === 'posts') loadPosts();
+  }, [tab]);
+
+  const loadStats = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/stats', { credentials: 'include' });
+      if (res.ok) setStats(await res.json());
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  const loadUsers = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users?search=${search}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data.users || []);
+      }
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  const loadPosts = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/posts', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setPosts(data.posts || []);
+      }
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  const toggleUserStatus = async (userId, currentStatus) => {
+    const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+        credentials: 'include'
+      });
+      if (res.ok) {
+        loadUsers();
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const deletePost = async (postId) => {
+    if (!confirm('Delete this post?')) return;
+    try {
+      const res = await fetch(`/api/posts/${postId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.ok) loadPosts();
+    } catch (e) { console.error(e); }
+  };
+
+  if (!user?.email?.includes('admin')) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="bg-card border-border p-8">
+          <h2 className="text-2xl font-bold text-foreground mb-2">Access Denied</h2>
+          <p className="text-muted-foreground">You don't have permission to access the admin panel.</p>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 pt-20 pb-8">
+      <h1 className="text-3xl font-bold text-foreground mb-6">Admin Panel</h1>
+      
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="mb-6">
+          <TabsTrigger value="stats">Statistics</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="posts">Content</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="stats">
+          {loading ? (
+            <div className="text-center py-12"><div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div>
+          ) : stats && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {Object.entries(stats).map(([key, value]) => (
+                <Card key={key} className="bg-card border-border">
+                  <CardContent className="p-6">
+                    <div className="text-3xl font-bold text-foreground">{value}</div>
+                    <div className="text-sm text-muted-foreground capitalize">{key}</div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="users">
+          <div className="mb-4">
+            <Input
+              placeholder="Search users..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && loadUsers()}
+              className="max-w-md"
+            />
+          </div>
+          {loading ? (
+            <div className="text-center py-12"><div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div>
+          ) : (
+            <div className="space-y-2">
+              {users.map(u => (
+                <Card key={u.user_id} className="bg-card border-border">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={u.picture} />
+                        <AvatarFallback>{u.name?.[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium text-foreground">{u.name}</div>
+                        <div className="text-sm text-muted-foreground">{u.email}</div>
+                        <div className="text-xs text-muted-foreground">Tier: {u.tier} | Status: {u.status || 'active'}</div>
+                      </div>
+                    </div>
+                    <Button
+                      variant={u.status === 'suspended' ? 'default' : 'destructive'}
+                      size="sm"
+                      onClick={() => toggleUserStatus(u.user_id, u.status)}
+                    >
+                      {u.status === 'suspended' ? 'Activate' : 'Suspend'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="posts">
+          {loading ? (
+            <div className="text-center py-12"><div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div>
+          ) : (
+            <div className="space-y-2">
+              {posts.map(p => (
+                <Card key={p.post_id} className="bg-card border-border">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={p.author?.picture} />
+                            <AvatarFallback>{p.author?.name?.[0]}</AvatarFallback>
+                          </Avatar>
+                          <div className="text-sm font-medium text-foreground">{p.author?.name}</div>
+                        </div>
+                        <p className="text-sm text-foreground/90">{p.content}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-400 hover:text-red-500"
+                        onClick={() => deletePost(p.post_id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
 export default function App() {
   const [view, setView] = useState('loading');
   const [user, setUser] = useState(null);
@@ -2256,7 +2582,7 @@ export default function App() {
     <AppContext.Provider value={contextValue}>
       {view === 'landing' && <LandingPage />}
       {view === 'onboarding' && <OnboardingView />}
-      {['feed', 'profile', 'network', 'business', 'ceo', 'user-profile', 'jobs', 'messages', 'communities', 'events'].includes(view) && (
+      {['feed', 'profile', 'network', 'business', 'ceo', 'user-profile', 'jobs', 'messages', 'communities', 'events', 'admin'].includes(view) && (
         <div className="min-h-screen bg-background">
           <TopBar />
           {view === 'feed' && <FeedView />}
@@ -2269,6 +2595,7 @@ export default function App() {
           {view === 'messages' && <MessagingView />}
           {view === 'communities' && <CommunitiesView />}
           {view === 'events' && <EventsView />}
+          {view === 'admin' && <AdminPanelView />}
         </div>
       )}
     </AppContext.Provider>
